@@ -1,0 +1,281 @@
+---
+title: "ideas"
+author: "Antoine Fabri"
+date: "12/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+### some design ideas :
+
+* Use compact style of data.table but :
+    * no assignment by reference
+    * no confusion between subsetting and `with` evaluation, `j` (called `.j` here)
+    is only for column subsetting, column definitions and transformations are in `...`
+    * usage of `.by` consistently aggregates by group, to mutate by group, we use a formula
+    where groups are given on the rhs. This stems from the fact that "mutate by" operations
+    are rarely done on may columns at the same time and we may want to run them among other
+    standard mutate operations.
+    * could do more (all?) types of data transformations
+
+
+* to use the `tb` class for a single operation we can use the `%tb>%` pipe.
+
+* The dot is not used as allias to list function, we don't need it because we use `...` with other tricks, we might use however use `.x` to reference the `tb`, `.` to represent the subset, or `..` to represent the lhs of a transformation expression.
+
+* we don't not need a pronoun like `.N` or `n()` because `nrow(.x)` and `nrow(.)`
+work and are quite short.
+
+* The function will support `.()` as in `bquote()` by default.
+
+* function could support `.substitute()` to substitute arguments, as in tags experiment,
+though `.(substitute(foo))` should achieve something similar.
+
+* if the lhs is parenthesized, all the non function symbols corresponding
+to column names will be removed
+
+* if the lhs is a vector, use zeallot rules
+
+* zeallot + dotdot = mutate_at : `tb[c(x,y) := log(..)]` will apply log to every col in the `c` call.
+
+* ``tb[`foo_{x}` := log(..)]`` should also work
+
+* zeallot + dotdot + ? = mutate_if : `tb[?is.numeric := log(..)]` will apply log to every col in the `c` call.
+
+* `+` will splice the output column, not splice before like `!!!` does, so the `.by` argument can be used
+
+* lhs is parsed glue style, replacing in name either string (or coercible, like numeric or symbol) so 
+``tb[`foo_{x}` = "hi"]`` with `x <- "bar"` or `x <- quote(bar)`will be equivalent to
+``tb[`foo_bar` = "hi"]``.
+
+* This can work with a x *vector*, in that case zeallot semantics will be used
+
+* If `x` in that case is a column name of the table, it the result will be spread : ``tb[`mean_dist_{speed}` := mean(dist)``
+
+* note that ``tb[glue("foo_{x}") := "hi"]``. would work as well
+
+* These cases could be considered the same, as long as we just consider unique `x` (like glue with a transformer "unique"), 
+because it is really filtering the data with each vector value (which only filters if variable is in table)
+* `?` can be used for `select_if`, `starwars[,?is.numeric]`
+* `?` can also be used for `mutate_if`, using `starwars[,,?is.numeric := log(..)]` or
+`starwars[,,?is.numeric := log]`
+* maybe renaming all numeric variables : ``starwars[,, (`renamed_{?is.numeric}`) := ..]``
+but not sure how clean/unambiguous/useful/hard to implement. I think it's reasonably feasable if
+`?is.numeric` is seen as a substitution of lists on the right side and vecor of names in the left side.
+* Actually on the rhs, IF the lhs is atomic it should be a list, but if the lhs is not (either using `c()` or using `foo_{x}` with x longer than one), then we should apply on successive values (and not allow both `?` and `..`)
+
+
+```{r}
+sw <- dplyr::starwars
+class(sw) <- c("tb",class(sw))
+```
+
+### subsetting/slicing/filtering
+
+* we keep i and j for subsetting only (no special case + "with" headache), and syntax stays compatible in simple cases with base and tibble
+* we use drop = FALSE by default
+* subsetting precedes the other operations, i.e. other operations happening in
+dots operate on the subsetted table
+
+```{r, eval = FALSE}
+sw[1,]
+sw[,2]
+sw[1,2]
+```
+
+* we do however consider the `.by` parameter for row subsetting, so can slice by group, with data.table we'd do `DT[, .SD[1,], by=gender]`
+but here we can do:
+
+```{r}
+sw[1, .by= "gender"]
+```
+ 
+* It would be nice however to keep a possibility to do
+
+```{r}
+as.data.table(starwars)[,height:mass]
+```
+
+* we can filter as in data.table with
+
+```{r}
+sw[height > 250,]
+```
+ 
+* we do however consider the `.by` parameter for row subsetting, so can slice by group, with data.table we'd do `DT[, .SD[1,], by=gender]`
+but here we can do
+
+```{r}
+sw[1, .by= "gender"]
+```
+ 
+### selecting
+
+* We need an utility such as `vars()`.
+* note that we can use things like `startsWith(names(.x),"foo")` which 
+
+Maybe a `q` tag would help, so `q$c(a,b,c)` is `c("a","b","c")`, q would change
+to a string any input of the function which is a symbol, so we can "protect" a
+value using `(a)` or `{a}`.
+ 
+* we should be able to use `?` to select if 
+
+```{r}
+sw[,?is.numeric]
+```
+
+ 
+### mutating/transmuting
+
+* mutating is done just as in dplyr::mutate
+
+```{r}
+sw[height_cm = height/100]
+```
+
+* to mutate by, we don't use parameter .by, we use parameter .along (could be .BY and .by, so .by is the "soft one", keeping row number, and can be used with joins)
+
+```{r}
+sw[max_height = max(height), .along = "name"]
+```
+
+* transmuting is done by setting .rm to TRUE, in this case we'll keep only
+variables defined in dots, .by, or .along
+
+```{r}
+sw[height_cm = height/100, .rm = TRUE]
+```
+
+The use of `lapply` in data.table or `map` in mutate calls is never so pretty.
+Better have a tag to map on some value, by default the first arg, we can use
+`m` which is for `map` or `multiple`
+
+```{r}
+m$fun(foo) # will apply fun on all element of foo
+m("y")$fun(x=foo, y =bar) # will apply fun on all element of bar
+m("x","y")$fun(x=foo, y =bar) # is like pmap
+```
+
+### summarizing
+
+* summarizing is just like mutating, but using `.BY`
+
+### counting
+
+We can use the `dplyr` function or just do almost as in data.table:
+
+```{r}
+count(sw, height)
+sw[,, nrow(.SD), .by = "height"]
+sw[,, nrow, .by = "height"] # maybe when eval to function, apply on .SD ?
+```
+
+### bind columns
+
+It's just a special case of splicing, so we can do:
+
+```{r}
+sw2 <- rename_all(sw1, toupper)
+sw[,,+sw2[1:2]]
+```
+
+### add row, bind rows
+
+By analogy of previous, do:
+
+```{r}
+sw2 <- rename_all(sw1[1:2], toupper)
+sw[+head(sw)]
+```
+
+### joins
+
+for joins that are not centered on a table, we can keep using dplyr joins,
+but we can do left join with a syntax such as : 
+
+```{r}
+df1[,, +~df2[1:2], .by= "x"]
+```
+
+But I wonder if here the correct thing wouldn't be to use `.along` and to forbid
+addition of rows (redirecting to left join for those), OR to use `.by` but then
+we must compute aggregate values on `.by` cols after join.
+
+If we use a hard .BY we can apply the mutate calls on the duplicates.
+
+As semi join are more about subsetting, we might use a data frame in `.i` for these
+cases.
+
+### arrange, sort
+
+```{r}
+sw[order(height),]
+# rather than
+arrange(sw, height)
+```
+
+### 
+
+```{r}
+# we can keep := for cases when we build a lhs name, but we don't need them
+# having a variable name such as  `test_{speed}` means that we'll also aggregate by speed,
+# and spread the results
+# having a variable name such as `test_{.i}` or `test_{.n}` means that we will
+# spread a list result, using id or name
+# if the names are enough we can just splice the list with one or 2 unary `+`
+# with := we can use + to do things like `"test_" + speed := ...` and `+` will be used as paste0
+
+# applying several functions on one variable
+
+# there is a parallel to be done between nesting / splicing /unpacking
+# splicing puts the elements of a list in columns
+# unpacking does the same when object is a data.frame
+# unnesting goes through as many element as there are rows and distributes the
+# sub elements either in columns or rows, we could use unary +, double +, triple + ?
+# unary - ? +!, interrogaton mark etc for several scenarios
+```
+
+### add things such as `fill` or `replace_na` as arguments applied in the end
+
+
+### extract
+
+can be reproduced by +unglue_data
+
+### nest pack chop unnest unpack unchop, hoist
+
+We could consider nesting with some special syntax.
+
+Using simply `list` or `c` or `q$c` on the rhs we would do something like :
+
+```{r}
+sw[,,(color) := c("eye_color", "hair_color")] # gather ?
+sw[,,{color} := c("eye_color", "hair_color")] # pack ?
+```
+
+Problem is that we can also nest, or maybe something else, it's not very general
+and need to know which is which. maybe it's ok to have special syntax
+
+```{r}
+sw[,,(color) := keyval(eye_color, hair_color)] # gather
+sw[,,(color) := chunk(eye_color, hair_color)]  # nest
+sw[,,(color) := tibble(eye_color, hair_color)] # pack
+```
+
+where the `()` means that the input arguments will be removed at the end.
+
+
+In addition to being compact, the reason why we need a special syntax is that
+we need to remove the columns after the operation, which a simple mutate call
+doesn't achieve
+
+
+### pivot spread gather ?
+
+maybe only spread as gather is augmenting number of rows
+
+OR better, use new tidyr philosophy and gather to lists, then have an unchop
+option in the end to make it longer

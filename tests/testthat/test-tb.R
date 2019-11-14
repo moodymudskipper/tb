@@ -29,13 +29,19 @@ sw[1:2, ?is.numeric]
 
 
 # mutate
-sw[1:4, height = height/100]
-sw[1:4, height_cm = height/100]
-sw[1:4, height_cm = height/100, .rm = TRUE]
-sw[1:4, height = height/100, .rm = TRUE]
+sw[1:4, 1:3, height = height/100]
+sw[1:4, 1:3, height_cm = height/100]
 
-x <- "HEIGHT"
-sw[1:4,,{x} := height/100] # works
+
+sw[1:4, 1:3, height_cm = height/100, .rm = TRUE]
+sw[1:4, 1:3, height = height/100, .rm = TRUE]
+
+x <- "height_cm"
+sw[1:4, 1:3, {x} := height/100]
+sw[1:4, 1:3, `{x}` = height/100]
+sw[1:4, 1:6, height = mean(height) ~ eye_color]
+x <- quote(height_cm)
+sw[1:4, 1:6, `{x}` = mean(height) ~ eye_color]
 sw[{x} := height/100] # works
 sw[1:4, {x} := height/100]  # works
 sw[1:4, `{x}` = height/100] # works

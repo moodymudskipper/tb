@@ -1,0 +1,530 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# tb
+
+An experiment to see if I can come up with an interface that solves my
+frustration with both the *tidyverse* and *data.table* worlds.
+
+This will most probably not get anywhere, is unlikely to ever be stable
+and extremely messy at time of writing, might also stay as is forever.
+
+<!-- ## Principles -->
+
+<!-- * no assignment by reference (unless we add a `by_ref = FALSE` arg later) -->
+
+<!-- * standard data.frame syntax should work as much as possible (unlike *data.table* and -->
+
+<!-- more like *tibble*, decision towards) -->
+
+<!-- * arguments are dotted because we use `...` for our `mutate()` and `summarize()` -->
+
+<!-- functionalities. -->
+
+<!-- * `.i` is called only for subsetting, we might feed it a data.frame to do a semi join, -->
+
+<!-- as *data.table* did initially, but no right joins as it does now. -->
+
+<!-- * `.j` called only for selection in the SQL sense, which means selecting and transmuting in -->
+
+<!-- the *dplyr* sense. *data.table* uses `.j` for transforming/mutating. -->
+
+<!-- * `:=` is an extension of `=` and behaves just the same in the general case, so `tb[mutated_col = foo]` is the same as `tb[mutated_col := foo]` (i.e. not fed to `.i` ultimately) -->
+
+<!-- * Using `.by` means aggregation by group (we consistently get one row by unique set of `.by` column values), while "mutating by" is done by using two sided formulas : `tb[mutated_col = expr ~ by_col]`, because we never do this on many columns, AND we often want to do regular `mutate()` calls next to `mutate()` "by" calls. -->
+
+<!-- * No RIGHT join by feeding df to first arg, but we'll find a way to do LEFT joins (grow the table) -->
+
+<!-- * will support `spread()` through *glue* like syntax like ``mtcars_tb[ `mean_mpg_{cyl}` = mean(mpg), .by = "vs"]`` -->
+
+<!-- * `.()` will work as in `bquote()`, not as in *data.table*, providing a partial alternative to the *rlang* stuff, we might use `..(foo)` as a similar alternative to rlang's `{{foo}}` -->
+
+<!-- * *dotdot* semantics are supported so we can do `iris_tb[Species = toupper(..)]` -->
+
+<!-- * used columns are removed by parentheses on lhs such as in `iris_tb[(Sepal.Area) := Sepal.Width * Sepal.Length]`. Note : data.table uses this for evaluating the name or a string inside the -->
+
+<!-- brackets to  -->
+
+<!-- , removing `Sepal.Width` and `Sepal.Length` (by using `all.vars()` on expression) -->
+
+<!-- * We can use `.x` anywhere to refer to source table and `.` to refer to `.SD` (and as said above, `..` for lhs of equalities) -->
+
+<!-- * we use `?` to `select_if()` or `mutate_if()` such as in `iris_tb[,?is.numeric]`  -->
+
+<!--   and `iris_tb[?is.numeric := log(..)]` -->
+
+<!-- * ideally should support all main transformations from *dplyr*, *tidyr* and *data.table* -->
+
+<!-- * performance is an afterthought. -->
+
+<!-- * A `%tb>%` pipe will be offered so we can write `iris %tb>% .[Species := toupper(..)]` and use tb syntax -->
+
+<!-- for a single operation without "commiting" to the class. -->
+
+<!-- ## setup -->
+
+<!-- ```{r} -->
+
+<!-- library(tb) -->
+
+<!-- sw <- as_tb(dplyr::starwars) -->
+
+<!-- ``` -->
+
+<!-- ## `slice()` -->
+
+<!-- ```{r} -->
+
+<!-- # subsetting with numeric index -->
+
+<!-- sw[1:2,] -->
+
+<!-- # subsetting with logical index, recycled -->
+
+<!-- sw[c(T,F)] -->
+
+<!-- # slicing along groups -->
+
+<!-- sw[1:2 ~ gender] -->
+
+<!-- sw[1:2 ~ gender + eye_color] -->
+
+<!-- ``` -->
+
+<!-- ## `filter()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[height > 220] -->
+
+<!-- ``` -->
+
+<!-- ## `select()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[,1:3] -->
+
+<!-- sw[, hair_color:eye_color] -->
+
+<!-- sw[, c(T,F)] -->
+
+<!-- sw[, c("hair_color", "skin_color", "eye_color")] -->
+
+<!-- ``` -->
+
+<!-- ## `select_if()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[, ?is.numeric] -->
+
+<!-- ``` -->
+
+<!-- ## `arrange()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[order(height)][1:3,1:4] -->
+
+<!-- ``` -->
+
+<!-- ## `count()` -->
+
+<!-- ```{r} -->
+
+<!-- # doesn't seem to work right -->
+
+<!-- sw[n = nrow(.), .by  = "eye_color"] -->
+
+<!-- ``` -->
+
+<!-- ## `mutate()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[1:4, 1:3, height = height/100] -->
+
+<!-- sw[1:4, 1:3, height_cm = height/100] -->
+
+<!-- sw[1:4, 1:6, height = mean(height) ~ eye_color] -->
+
+<!-- x <- "height_cm" # or x <- quote(height_cm) -->
+
+<!-- sw[1:4, 1:3, {x} := height/100] -->
+
+<!-- sw[1:4, 1:3, `{x}` = height/100] -->
+
+<!-- ``` -->
+
+<!-- ## `mutate_if()` -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # not supported yet, 2 options, 1st expr below or 2 latter -->
+
+<!-- sw[1:4, 1:3, ?is.numeric := log(..)] -->
+
+<!-- sw[1:4, 1:3, ?is.numeric := log] -->
+
+<!-- sw[1:4, 1:3, ?is.numeric := ~log(.)] -->
+
+<!-- ``` -->
+
+<!-- ## `transmute()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[1:4, height_cm = height/100, .rm = TRUE] -->
+
+<!-- sw[1:4, height = height/100, .rm = TRUE] -->
+
+<!-- ``` -->
+
+<!-- Not completely sure about this one, alternatives would be : -->
+
+<!-- * 1) A special value for `.j` : `sw[1:4, NULL, height_cm = height/100]` -->
+
+<!-- * 2) Use `.j` as in *data.table* and consider that it is still "subsetting"  -->
+
+<!--   (as `transmute()` is really `SELECT` in SQL): `sw[1:4, slct(height_cm = height/100)]` -->
+
+<!-- * 3) Use `[[` as a `with()` to compute unnamed arguments, so we'd do `sw[[,tb(height_cm = height/100)]]` -->
+
+<!-- * 4) Just use `with()` and we don't need `transmute()` : `with(sw, tb(height_cm = height/100)) -->
+
+<!-- An argument to keep the `.rm` is that it could be `NA` by default so when we use -->
+
+<!-- `.by` it acts as if it is `TRUE`, and when mutating acts as if it is `FALSE`. -->
+
+<!-- setting to `FALSE` when summarizing would `nest()` (or rather `chop()`) all remaining columns. -->
+
+<!-- ## `morph()` -->
+
+<!-- `morph()` was a variant of `mutate()` / `transmute()` considered for *dplyr* -->
+
+<!-- but not implemented so far, which would remove its inputs. -->
+
+<!-- ```{r} -->
+
+<!-- sw[1:4, 1:6, (bmi) := mass / ((height/100)^2)] -->
+
+<!-- ``` -->
+
+<!-- ## `summarize()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[mean_height = mean(height, na.rm = TRUE), .by = "gender"] -->
+
+<!-- ``` -->
+
+<!-- ## `nest()` -->
+
+<!-- Nesting is a special case of summarizing, but keeping extra columns -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # not supported yet! -->
+
+<!-- # chopping each column -->
+
+<!-- sw[by=Species, .rm = FALSE] -->
+
+<!-- # nesting relevant columns -->
+
+<!-- sw[Petal = data.frame(Petal.Width, Petal.Length), .by="Species"] -->
+
+<!-- ``` -->
+
+<!-- ## `pack()` -->
+
+<!-- Nesting is a special case of summarizing, but keeping extra columns -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # not supported yet! -->
+
+<!-- sw[Petal = data.frame(Petal.Width, Petal.Length)] -->
+
+<!-- ``` -->
+
+<!-- ## `rename()` -->
+
+<!-- ```{r} -->
+
+<!-- sw[1:4, 1:6, (HEIGHT) := height] -->
+
+<!-- ``` -->
+
+<!-- Not sure if there is room to implement `rename_if()` / `rename_at()`, -->
+
+<!-- they're also not frequent calls so it might be good to be more explicit and use the *dplyr* functions. -->
+
+<!-- ## `spread()` / `pivot_longer` -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # not supported yet -->
+
+<!-- sw[`mean_height_{eye_color}` = mean(height), .by = "gender"] -->
+
+<!-- ``` -->
+
+<!-- ## `gather()` -->
+
+<!-- A call to a function, e.g. `keyval()` will gather the columns in nested data frames. -->
+
+<!-- To end up with a longer table we need then to use the argument `unchop` or `unnest`, which we might rename. -->
+
+<!-- we have several options here too, not necessarily exclusive : -->
+
+<!-- ```{r} -->
+
+<!-- # color is a nested data frame, that we unnest in the same call -->
+
+<!-- # sw[(color) := keyval(hair_color, skin_color, eye_color), .unnest = "color"] -->
+
+<!-- # key and value are packed columns, using zealot semantics, that we unchop in the same call -->
+
+<!-- # sw[c("key", "value") := keyval(hair_color, skin_color, eye_color), .unnest = TRUE] -->
+
+<!-- ``` -->
+
+<!-- ## `bind_rows()`, `` -->
+
+<!-- It's not really an operation "inside of a table" so not sure if it needs to be -->
+
+<!-- supported or how we'd do it. -->
+
+<!-- ## `bind_cols()` -->
+
+<!-- It's equivalent to splicing another table. -->
+
+<!-- Either we make splicing systematic for unnamed args and we can do : -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[,,tb2] -->
+
+<!-- ``` -->
+
+<!-- Or we splice using unary `+` and do -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[,, +tb2] -->
+
+<!-- ``` -->
+
+<!-- Another way using or "zeallot like" semantics would be : -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[names(tb2) := tb2] -->
+
+<!-- ``` -->
+
+<!-- which doesn't require additional functionality but is somewhat redundant. -->
+
+<!-- ## `extract()` -->
+
+<!-- I think we can use `unglue_data()` to replace it completely if we splice : -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb[,, +unglue_data(.,col, "{new_col1} foo {new_col2}")] -->
+
+<!-- ``` -->
+
+<!-- ## `left_joins()` -->
+
+<!-- I think only `left_join()` makes sense inside the df. -->
+
+<!-- We could just do (without using the unary `+` to splice): -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[,, tb2[,cols_tb2]] -->
+
+<!-- ``` -->
+
+<!-- in case of different `.by` cols, renaming is not more verbose than `.by` specifications : -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[,, tb2[(new) := old]] -->
+
+<!-- ``` -->
+
+<!-- It's annoying though to have to specify the `.by` column if we just want to grab -->
+
+<!-- a couple columns from `tb2`. -->
+
+<!-- So we could define some special helper to work only inside `tb`s. -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # take 2 columns, no need to mention by cols -->
+
+<!-- tb1[,, lj(tb2, col_a, col_b)] -->
+
+<!-- ``` -->
+
+<!-- Or something like this, where `by_col` is searched in both `tb1` and `tb2` :  -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb1[, tb2[,c("col_a","col_b")] ~ by_col] -->
+
+<!-- tb1[, tb2[,c("col_a","col_b")] ~ c(by_col1 = "by_col2")] -->
+
+<!-- ``` -->
+
+<!-- Or maybe a double formula ? -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- # natural left join  -->
+
+<!-- tb1[, ~tb2] -->
+
+<!-- # natural join with column selection -->
+
+<!-- tb1[, tb2 ~ c("col_a","col_b")] -->
+
+<!-- # equivalent to -->
+
+<!-- tb1[, ~tb2[,c("by_col","col_a","col_b")]] -->
+
+<!-- # take all columns, but mention 'by' cols -->
+
+<!-- tb1[, tb2 ~~ by_col] -->
+
+<!-- # mention all -->
+
+<!-- tb1[, tb2 ~ c("col_a","col_b") ~ by_col] -->
+
+<!-- # the most complex case -->
+
+<!-- tb1[, tb2 ~ c("col_a","col_b") ~ c(by_col1 = "by_col2")] -->
+
+<!-- # and we can imagine (but we'll need to have fun parsing bc of precedence) -->
+
+<!-- tb1[, tb2 ~ ?is.numeric ~ c(by_col1 = "by_col2")] -->
+
+<!-- ``` -->
+
+<!-- It might not be that bad because as we have a formula and not a data fame -->
+
+<!-- we can splice automatically all unnamed arguments that are not formulas -->
+
+<!-- (and don't start with `?`). -->
+
+<!-- It's also the more compact we'll get. -->
+
+<!-- ## `complete()`, `expand()`, `fill()` -->
+
+<!-- There could be a `.complete` argument that would be triggered on output but not -->
+
+<!-- much value compared to separate call ? -->
+
+<!-- same for `expand()`, `fill()` -->
+
+<!-- ## `separate()`, `separate_rows()`, `unite()` -->
+
+<!-- `separate()` could be done by using a specific function and the output would -->
+
+<!-- be spliced, but most cases are taken care of by `unglue_data()` very conveniently : -->
+
+<!-- ```{r, eval = FALSE} -->
+
+<!-- tb[, +unglue_data(old, "{this} and {that}")] -->
+
+<!-- ``` -->
+
+<!-- I think `separate_rows()` too, using `unglue_vec(x, "{x}, {x}, {x}", multiple = c)` and unchopping the column in the end. -->
+
+<!-- `unite()` is just `tb[(new) := paste(col1,col2,sep="_")]`  -->
+
+<!-- and we could define `fuse()` as a `paste()` with the ability to remove NAs and  -->
+
+<!-- `_` as a default separator, and `fuse0()` (just for NAs) -->
+
+<!-- ### rolling joins -->
+
+<!-- It's cool to be able to do complicated things in so few keystrokes with -->
+
+<!-- *data.table*, but maybe not so valuable, we could get creative with join notation -->
+
+<!-- but it's not that important, and data.table is already there if needed. -->
+
+<!-- ### mapping -->
+
+<!-- `dplyr::rowwise()` is ugly and imposes to  every mutate call to be rowwise. -->
+
+<!-- `map()` or `lapply()` look bad in mutate calls, though we can get used to them, -->
+
+<!-- and we need `pmap()` or `Map()` when vectorizing on several arguments, and we lose -->
+
+<!-- autocomplete, We can do better. -->
+
+<!-- `Vectorize()` is ugly as well, but is the start to a solution.  -->
+
+<!-- What about marking the argument, so that the function knows we should vectorize -->
+
+<!-- along this one ? The following would nest by row (different alternatives): -->
+
+<!-- ```{r} -->
+
+<!-- # easiest -->
+
+<!-- sw[colors := data.frame(?hair_color, ?skin_color, ?eye_color)]  -->
+
+<!-- # to mark difference with other uses of `?` -->
+
+<!-- sw[colors := data.frame(?+hair_color, ?+skin_color, ?+eye_color)] -->
+
+<!-- # v like vectorize ? -->
+
+<!-- sw[colors := data.frame(v?hair_color, v?skin_color, v?eye_color)] -->
+
+<!-- # or with `:` ? -->
+
+<!-- sw[colors := data.frame(v:hair_color, v:skin_color, v:eye_color)] -->
+
+<!-- sw[colors := data.frame(v:+hair_color, v:+skin_color, v:+eye_color)] -->
+
+<!-- # both following are not too bad! just issue of confusion with splicing and join notation -->
+
+<!-- sw[colors := data.frame(++hair_color, ++skin_color, ++eye_color)] -->
+
+<!-- sw[colors := data.frame(~~hair_color, ~~skin_color, ~~eye_color)]  -->
+
+<!-- sw[colors := data.frame(v~~hair_color, v~~skin_color, v~~eye_color)]  -->
+
+<!-- # this adds brackets, but really does look like something different -->
+
+<!-- sw[colors := data.frame((+hair_color), (+skin_color), (+eye_color))] -->
+
+<!-- # this is more readable but brakets remind of glue -->
+
+<!-- sw[colors := data.frame({+hair_color}, {+skin_color}, {+eye_color})] -->
+
+<!-- # this is readable but probably will be confusing -->
+
+<!-- sw[colors := data.frame(V[hair_color], V[skin_color], V[eye_color])] -->
+
+<!-- ``` -->
+
+<!-- Note that we could define a tag to do `tag$data.frame(?hair_color, ?skin_color, ?eye_color)`, which could be a first step, and nice to use elsewhere. -->
+
+<!-- In `[` we could do without it by looking for `?` everywhere and adapting the parent call -->
+
+<!-- to use `Vectorize()`, but it'll be slow. -->
+
+<!-- A `v:+foo` or `v~~foo` system can be generalized into a broader system of prefixes, -->
+
+<!-- used for joins,for select_if etc... -->
+
+<!-- Opinion now : `~~foo` and `(+foo)` are best. -->

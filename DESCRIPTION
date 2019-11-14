@@ -12,3 +12,5 @@ Encoding: UTF-8
 LazyData: true
 Suggests: 
     testthat (>= 2.1.0)
+URL: https://github.com/moodymudskipper/tb
+BugReports: https://github.com/moodymudskipper/tb/issues

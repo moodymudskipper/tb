@@ -1,24 +1,123 @@
-transform2 <- function(.x, expr, nm, env){
-  res <- eval(expr,envir = build_mask(.x), enclos = env)
-  if(inherits(res, "formula")){
-    along_vars <- get_all_vars(res[-2], .x)
-    expr <- substitute(with(., EXPR), list(EXPR = res[[2]]))
-    fun <- as.function(c(alist(.=), expr))
-    environment(fun) <- env
-    if(is.null(.x[[nm]])) .x[[nm]] <- NA # add column if relevant
-    split(.x[[nm]], along_vars) <- lapply(split(.x, along_vars), fun)
-  } else {
-    .x[[nm]] <- res
+reparse_dbl_tilde <- function(expr){
+  ## counter of arguments to iterate on
+  i <- 0
+  ## content of arguments to iterate on
+  all_iter_args <- list()
+
+  is_prefixed <- function(x) {
+    is.call(x) &&
+      identical(x[[1]], quote(`~`)) &&
+      is.call(x[[2]]) &&
+      identical(x[[2]][[1]], quote(`~`))
   }
-  .x
+
+  reparse0 <- function(call){
+    if(!is.call(call)) return(call)
+    prefixed_lgl <- sapply(call, is_prefixed)
+    if(any(prefixed_lgl)) {
+      iter_args <-  lapply(call[prefixed_lgl], `[[`,c(2,2))
+      n_iter_args    <-  length(iter_args)
+      all_iter_args      <<- append(all_iter_args, iter_args)
+      arg_nms   <-  paste0("*",seq(i+1, i <<- i + n_iter_args))
+      arg_syms  <-  lapply(arg_nms, as.symbol)
+      call[prefixed_lgl] <- arg_syms
+    }
+    call[] <- lapply(call, reparse0)
+    call
+  }
+  body <- reparse0(expr)
+
+  if(!i) return(expr)
+  arg_nms   <-  paste0("*",seq_len(i))
+  fun_iter_args <- setNames(replicate(i, substitute()), arg_nms)
+  fun <- as.function(c(fun_iter_args, body),envir = parent.frame())
+  as.call(c(quote(mapply),fun, all_iter_args))
 }
+
+
+
+
+splice_expr <- function(expr, mask){
+  expr <- as.list(expr)
+  expr <- lapply(expr, function(x) {
+    if(is.symbol(x)) return(x)
+    if(is.numeric(x) || is.character(x) || is.logical(x)) return(list(x))
+    if(has_splice_prefix(x)){
+      return(eval(x[[2]], envir = mask$.data, enclos = mask))
+    }
+    splice_expr(x)
+  })
+  expr <- unlist(expr,recursive = FALSE)
+  expr <- as.call(expr)
+  expr
+}
+
+has_splice_prefix <- function(x){
+  is.call(x) && length(x) == 2 && identical(x[[1]], quote(`+`))
+}
+
+is_specified <- function(arg) {
+  !is.null(names(arg)) || is_labelled(arg[[1]])
+}
+
+# a deparse that doesnt choke on `{`
+deparse2 <- function(x){
+  paste(deparse(x), collapse ="")
+}
+
+transform2 <- function(nm, expr, mask){
+  .data <- mask$.data
+  mask$. <- .data[[nm]]
+  res <- eval(expr,envir = .data, enclos = mask)
+  if(inherits(res, "formula")){
+    ## mutating along
+    along_vars <- get_all_vars(res[-2], .data)
+    expr <- res[[2]]
+    #expr <- substitute(with(., EXPR), list(EXPR = res[[2]]))
+    sub_dfs <- split(as.data.frame(.data), along_vars)
+
+    transformation_fun <- function(sub_df, expr) {
+      mask$.subset <- as_tb(sub_df)
+      mask$. <- sub_df[[nm]]
+      eval(expr, envir = sub_df, enclos = mask)
+    }
+
+    #
+    # fun <- as.function(c(alist(.=), expr))
+    # environment(fun) <- env
+    #if(is.null(.data[[nm]])) .data[[nm]] <- NA # add column if relevant
+    res <- rep(NA, nrow(.data))
+    split(res, along_vars) <- lapply(sub_dfs, transformation_fun, expr)
+    mask$. <- NULL
+    mask$.subset <- NULL
+  } else {
+    # regular mutating
+    #.data[[nm]] <- res
+  }
+  res
+}
+
+# transform2 <- function(.x, expr, nm, env){
+#   res <- eval(expr,envir = build_mask(.x), enclos = env)
+#   if(inherits(res, "formula")){
+#     along_vars <- get_all_vars(res[-2], .x)
+#     expr <- substitute(with(., EXPR), list(EXPR = res[[2]]))
+#     fun <- as.function(c(alist(.=), expr))
+#     environment(fun) <- env
+#     if(is.null(.x[[nm]])) .x[[nm]] <- NA # add column if relevant
+#     split(.x[[nm]], along_vars) <- lapply(split(.x, along_vars), fun)
+#   } else {
+#     .x[[nm]] <- res
+#   }
+#   .x
+# }
 
 reorganize_call_i <- function(mc, .i, .j){
   mc <- as.list(mc)
   mc_i <- mc[[".i"]]
   names(mc)[names(mc)==".i"] <- ""
   if(!missing(.j)) {
-    if(has_colon_equal(.j)){
+    if(is_labelled(.j)){
       # if we have := in both .i and .j
       # mc_j <- mc[[".j"]]
       names(mc)[names(mc)==".j"] <- ""
@@ -40,16 +139,14 @@ reorganize_call_j <- function(mc, .i, .j){
   mc <- as.list(mc)
   names(mc)[names(mc)==".j"] <- ""
   if(missing(.i)){
-  mc <- append(mc, c(substitute(), substitute()), 2)
+    mc <- append(mc, c(substitute(), substitute()), 2)
   } else {
     mc <- append(mc, substitute(), 3)
   }
   mc <- as.call(mc)
 }
 
-
-
-has_colon_equal <- function(x){
+is_labelled <- function(x){
   # expr should be a call
   # expr[[1]] should be `:=`
   is.call(x) && identical(x[[1]], quote(`:=`))
@@ -104,56 +201,6 @@ summarize_all2 <- function(df, f, by){
 #   .i
 # }
 
-
-simplify_i <- function(.x, .i, env = parent.frame()){
-  # evaluate it in the context of data frame
-  .i <- eval(.i, envir=.x, enclos= env)
-  if(!inherits(.i, "formula")){
-    # turn NAs to FALSE so we keep only TRUE indices
-    if(is.logical(.i)) .i[is.na(.i)] <- FALSE
-  } else {
-    along_vars <- get_all_vars(.i[-2], .x)
-    .i <- eval(.i[[2]], envir=.x, enclos= env)
-    if(!is.numeric(.i)) {
-      stop("if using `.by` and `.i` non missing, `.i` must be numeric")
-    }
-    # build ave call
-    call <- as.call(c(
-      quote(ave),                         # ave(
-      list(x = seq(nrow(.x))),            #   seq(nrow(.x)),
-      along_vars,  #   grpvar1, grpvar2, ...,
-      list(FUN = seq_along)))             #   Fun = seq_along)
-    .i <- eval(call, envir = .x) %in% .i
-  }
-  .i
-}
-
-simplify_j <- function(.x, .j, .by, env = parent.frame()){
-  if(is.call(.j)){
-    if(identical(.j[[1]], quote(`?`))){
-      # if .j starts with `?`
-      .j <- eval(bquote(sapply(.x, .(.j[[2]]))))
-    } else if(identical(.j[[1]], quote(`:`)) &&
-              is.symbol(.j[[2]]) &&
-              is.symbol(.j[[3]])){
-      # if .j is of form col1:col2
-      nms <- names(.x)
-      .j1 <- match(as.character(.j[[2]]), nms)
-      .j2 <- match(as.character(.j[[3]]), nms)
-      .j <- .j1:.j2
-    } else {
-      # else evaluate in context of df
-      .j <- eval(.j, envir=.x, enclos= env)
-    }
-  } else {
-    .j <- eval(.j, envir=.x, enclos= env)
-  }
-  # turn NAs to FALSE so we keep only TRUE indices
-  if(is.logical(.j)) .j[is.na(.j)] <- FALSE
-  if(!is.character(.j)) .j <- names(.x)[.j]
-  .j <- unique(c(.by, .j))
-}
-
 starts_with_bbb <- function(expr){
   is.call(expr) &&
     identical(expr[[1]], quote(`!`)) &&
@@ -163,13 +210,21 @@ starts_with_bbb <- function(expr){
     identical(expr[[2]][[2]][[1]], quote(`!`))
 }
 
-has_parenthesised_lhs_symbol <- function(expr){
-    # the lhs expr[[2]] should be a call
-    is.call(expr[[2]]) &&
+# should be done with double parens ((foo)) and not reserved to
+is_parenthesized_twice <- function(expr){
+  # the lhs expr[[2]] should be a call
+  is.call(expr) &&
     # expr[[2]][[1]] should be `(`
-    expr[[2]][[1]] == quote(`(`) &&
-    # The parenthesised expr expr[[2]][[1]] should be a symbol
-    is.symbol(expr[[2]][[2]])
+    identical(expr[[1]], quote(`(`)) &&
+    is.call(expr[[2]]) &&
+    identical(expr[[2]][[1]], quote(`(`))
+}
+
+is_curly_expr <- function(expr){
+  # the lhs expr[[2]] should be a call
+  is.call(expr) &&
+    # expr[[2]][[1]] should be `(`
+    expr[[1]] == quote(`{`)
 }
 
 
@@ -178,7 +233,7 @@ is_glue_name <- function(x){
 }
 
 build_mask <- function(x){
-  c(as.list(x), list(. = x))
+  c(as.list(x), list(. = x, `?` = question_mark))
 }
 
 keyval <- function(..., .key = "key", .value = "value", rm = TRUE) {
@@ -186,10 +241,5 @@ keyval <- function(..., .key = "key", .value = "value", rm = TRUE) {
   nms <- names(x)
   x <- split(x, seq(nrow(x)))
   x <- lapply(x, function(x) setNames(stack(x)[2:1],c(.key,.value)))
-  x
-}
-
-as_tb <- function(x){
-  class(x) <- c("tb", class(x))
   x
 }

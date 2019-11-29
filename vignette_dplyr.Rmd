@@ -1,0 +1,879 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  eval = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# tb
+
+An experiment to see if I can come up with an interface that
+solves my frustration with both the *tidyverse* and *data.table* worlds.
+
+This will most probably not get anywhere, is unlikely to ever be stable and 
+extremely messy at time of writing, might also stay as is forever.
+
+## helper functions
+
+`tb` focuses on what happens in `[.tb`, it indeed exports only :
+* `tb()` for creation
+* `[.tb` for transformation
+* `as_tb()` for conversion
+* `is_tb()` to detect the `"tb"` class
+* `s()` as a selection utility to be used in `[.tb`
+
+Other functions can of course be used in `tb`, in particular the
+`data.table`, `matrixStats` `zoo`, and `inops` contain many useful functions to use
+inside `[.tb`. In particular these will come in handy : 
+* `matrixStats::rowAnys()`
+* `matrixStats::rowAlls()`
+* `data.table::rleid()`
+* `data.table::fcoalesce()`
+* `zoo::rollapply()`
+
+## comparing to *tidyverse* packages
+
+The *tidyverse* has clear functions which aim mostly at doing a single thing well,
+so listing its functions is like listing features and is a great test for this
+package. We will go through examples from the doc and see how we can crack them.
+
+tidyverse functions can be used on *tb* objects, the output might be a tibble
+though, so both *tidyverse* and *tb*  versions of the following examples can be 
+copy/pasted and if we define first:
+
+```{r}
+library(tidyverse, warn.conflicts = F)
+library(tb)
+mtcars <- as_tb(mtcars)
+iris   <- as_tb(iris)
+starwars <- as_tb(starwars)
+```
+
+
+##  *tb* compared *dplyr*
+
+### `slice()`
+
+|   dplyr                  |            tb           |   data.table         | base                        |
+|--------------------------|-------------------------| ---------------------|-----------------------------|
+| `slice(mtcars, 1)`       | `mtcars[1,]`            |  `mtcars[1]`         | `head(mtcars, 1)`           |
+| `slice(mtcars, n())`     | `mtcars[nrow(.x),]`     |  `mtcars[.N]`        | `tail(mtcars, 1)`           |
+| `slice(mtcars, 5:n())`   | `mtcars[5:nrow(.x),]`   |  `mtcars[5:.N]`      | `tail(mtcars, -4)`          |
+| `slice(mtcars, -5:-n())` | `mtcars[5:nrow(.x),]`   |  `mtcars[-5:-.N]`    | `mtcars[-5:-nrow(mtcars),]` |
+| `slice(mtcars, 1:4)`     | `mtcars[1:4,]`          |  `mtcars[1:4]`       | `mtcars[1:4,]`              |
+| `mtcars %>%` <br>&ensp; `group_by(, cyl) %>%` <br>&ensp; `slice(1:2)` | `mtcars[1:2 ~ cyl,]` | `mtcars_dt[, .SD[1:2],`<br>&ensp;`by = cyl]` | `do.call(rbind,lapply(` <br>&ensp; `split(mtcars, mtcars$cyl),`<br>&ensp;`` `[`, 1:2,))`` |
+
+*tb* works a lot like *data.table* or *base R* here, so we added columns for comparison.
+
+A few notable differences :
+
+* We can access the original data with `.x` so we don't need the convenient but "magical" `.N`, we just type `nrow(.x)`.
+* We need the extra comma compared to *data.table*, because tb supports list indexing like regular data frames and tibble, so that an unique unnamed argument will be used for column selection.
+* We use the `by` argument only for true aggregation, leaving as many rows as distinct combinations of grouping columns. We do however support
+manipulations "along" other variables (we try to avoid the word "by"), and this is done by using a 2 sided formula.
+
+## `filter()`
+
+|   dplyr                                                                     |            tb                                            |
+|-----------------------------------------------------------------------------|----------------------------------------------------------|
+| `filter(starwars, species == "Human")`                                      | `starwars[species == "Human",]`                          |
+| `filter(starwars, mass > 1000)`                                             | `starwars[mass > 1000,]`                                 |
+| `filter(starwars,` <br>&ensp; `hair_color == "none", eye_color == "black")`              | `starwars[ hair_color == "none" & eye_color == "black",]` |
+| `filter(starwars, ` <br>&ensp; `hair_color == "none" | eye_color == "black")`             | `starwars[hair_color == "none" | eye_color == "black",]` |
+| `starwars %>% filter(mass > mean(mass, na.rm = TRUE))`                      | `starwars[mass > mean(mass, na.rm = TRUE),]`             |
+| `starwars %>%` <br>&ensp; `group_by(gender) %>%` <br>&ensp; `filter(mass > mean(mass, na.rm = TRUE))` | `starwars[mass > mean(mass, na.rm = TRUE) ~ gender,]`    | 
+
+This is again very similar to *data.table*, except for the last example where
+we filter along gender, in *data.table* syntax we would write : 
+
+```{r}
+starwars[, .SD[mass > mean(mass, na.rm = TRUE)], by = gender]
+```
+
+```{r}
+vars <- c("mass", "height")
+cond <- c(80, 150)
+```
+
+|   dplyr                                                                     |            tb                                            |
+|-----------------------------------------------------------------------------|----------------------------------------------------------|
+| `starwars %>%` <br>&ensp; `filter(` <br>&emsp; `.data[[vars[[1]]]] > cond[[1]],` <br>&emsp; `.data[[vars[[2]]]] > cond[[2]])`                                      | `starwars[.x[[vars[[1]]]] > cond[[1]] &` <br>&ensp; `.x[[vars[[2]]]] > cond[[2]],]`                          |
+
+Accessing `.x` is a lot like accessing `.data` with *dplyr*, except that `.x` is really
+the table object accessed in the context of the data frame, while `.data` is a special
+object that only looks like a data frame when accessed this way.
+
+```{r}
+mass <- 80
+height <- 150
+```
+
+
+|   dplyr                                              |            tb                                            |
+|------------------------------------------------------|----------------------------------------------------------|
+| `filter(starwars, mass > !!mass, height > !!height)` | `starwars[mass > .(mass) & height > .(height),]`         |
+
+While `tb` doesn't have a complex unquoting system as `dplyr` does, instead it 
+leverages `base::unquote()` and its `.()` notation (which is not to be confused 
+with the use that *data.table* makes of it!).
+
+## `filter_all()`
+
+|   dplyr                                 |            tb                |
+|-----------------------------------------|------------------------------|
+| `filter_all(mtcars, all_vars(. > 150))` | `mtcars[rowAll(.x > 150),]`  |
+| `filter_all(mtcars, any_vars(. > 150))` | `mtcars[rowAny(.x > 150),]`  |
+
+`rowAll()` and `rowAny()` are conveniences functions provided with `tb`
+
+We avoid the complexity of the `all_vars()` or `any_vars()` magic by applying
+the condition directly to the subset and building the filter from the matrix.
+
+## `filter_at()`
+
+|   dplyr                                 |             tb                                    |
+|-----------------------------------------|---------------------------------------------------|
+| `filter_at(mtcars, vars(starts_with("d")), any_vars((. %% 2) == 0))` | `mtcars[rowAny(.x[?"^d"] %% 2 == 0),]`  
+
+In this example we keep rows where at least one variable starting with "d" has an even value.
+
+`?` is a special function when evaluated in the context of a `tb`, here it is used with
+a string, and the regular expression it contains is applied on the names, returning a logical vector.
+We will see it also when looking at `select()`.
+
+This vector is used to subset `.x`, and then like on the example above we compute a boolean matrix
+and `rowAny` helps us finish the job.
+
+> Need to fix it so `.x` is a tb!
+> Need to make `?` return logical as it now returns character
+
+## `filter_if()`
+
+|   dplyr                                 |             tb                                    |
+|-----------------------------------------|---------------------------------------------------|
+| `filter_if(mtcars, ~ all(floor(.) == .), all_vars(. != 0))` | `mtcars[rowAll(.x[?all(floor(.) == .)] != 0),]`  
+
+In this example, among "integerish" columns we filter rows with only non zero values.
+
+`?` is this time fed a condition using the `.` placeholder, which is substituted
+successively by the elements (columns) of `mtcars`. 
+
+## `arrange()`
+
+|   dplyr                                 |             tb                                    |
+|-------------------------------|-----------------------------|
+| `arrange(mtcars, cyl, disp)`  | `mtcars[order(cyl,disp),]`  |
+| `arrange(mtcars, desc(disp))` | `mtcars[order(-disp),]`     |
+
+to sort charater value descending, use `order(-xtfrm(col))`, `xtfrm()` is a base function, or
+use `dplyr::desc()` which is exactly the same.
+
+> `mtcars[order(-wt) ~ cyl,]` doesn't make much sense but if we do it it doesn't
+> return the expected result! I think I'd expect cyl not changing but all the rest reordered
+
+## `arrange_all()`
+
+|   dplyr                                 |             tb                                    |
+|-------------------------------|-----------------------------|
+| `arrange_all(mtcars)`  | `mtcars[order(+.x),]`        |
+| `arrange_all(mtcars, desc)`  | `mtcars[order(+-.x),]` |
+
+Unary `+` means that we splice the input, so `order(+.x)`is equivalent to 
+`order(.x[[1]], .x[[2]], <etc>)`.
+
+It is similar to `!!!` in the tidyverse except that :
+* The input is spliced once evaluated in the context of the `tb` (so here `.x` is understood!), 
+while in the tidyverse the input is evaluated in the calling environment.
+* It is usable in any function
+* It doesn't necessarily have to be used in the `...` argument
+
+## `arrange_if()`
+
+|   dplyr                        |            tb                      |
+|--------------------------------|------------------------------------|
+| `arrange_if(iris, is.numeric)` | `iris[order(+.x[?is.numeric]),]`   |
+
+## `arrange_at()`
+
+```{r}
+vars <- c("cyl", "disp")
+```
+
+
+|   dplyr                        |            tb                      |
+|--------------------------------|------------------------------------|
+| `arrange_at(iris, mtcars)` | `mtcars[order(+.x[vars]),]`   |
+
+
+## `select()`
+
+|   dplyr                                     |            tb           |
+|---------------------------------------------|-------------------------|-|
+| `select(iris, starts_with("Petal"))`        | `iris[, ?"^Petal"]`   |
+| `select(iris, ends_with("Width"))`          | `iris[, ?"Width$"]`   |
+| `select(iris, Species, everything())`       | `iris[, s(Species, ?".*")]` |
+| `select(iris, -Sepal.Length, Sepal.Length)` | `iris[, s(-Sepal.Length, Sepal.Length)]` |
+| `select(iris, -starts_with("Petal"))` | `iris[, s(-?"^Petal")]` |
+| `select(iris, petal_length = Petal.Length)` | `iris[, s(petal_length = Petal.Length)]` | Once transmute is coded!
+| `select(iris, obs = starts_with('S'))`| `iris[s({?"^S"} := paste0("obs", seq_along(.)))]` | Once transmute is coded!
+
+We use the `?"<regex>"` notation as a counterpart to the select helpers used
+by dplyr.
+
+For complex selection we use `s()`, just like `vars()` in dplyr, `s()` allows
+richer syntax. It can be used in many places, to select grouping columns, or
+columns to transform, but its main use case is as above.
+
+Another use of `s()` in this same argument is to transform the data, as we'll see in
+the `transmute()` section. We already make use of its transforming capabilities in
+the last example though.
+
+The syntax of the last example is probably the most surprising as it combines
+MANY particularities of the `tb` package. You might want to come back to it later,
+but I'll still try to explain it while we're here : 
+
+* Using `{}` around the left hand side means that we are not assigning to column values,
+but to names, and not operating on column values but on names. 
+* The dot place holder on the rhs will be substituted by the names of the columns
+qualified by the lhs expression
+* We have objects of length > 1 on each side, but `:=` allows multi assign in the
+style of the `zeallot` package.
+* Note that new names are on the right, because it's the side of computed values (unlike in `dplyr::rename()`)
+
+That's a lot to digest but we'll come back to it.
+
+
+```{r}
+set.seed(1)
+df <- as.data.frame(matrix(runif(100), nrow = 10))
+df <- as_tb(df[c(3, 4, 7, 1, 9, 8, 5, 2, 6, 10)])
+```
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `select(df, V4:V6)`                   | `df[V4:V6]`             |
+| `select(df, num_range("V", 4:6))`     | `df[?"V[4-6]"]`         |
+
+Here again regex saves the day.
+
+<!-- > `?` should return logical, so if needed we can do `!?` and it makes sense, but not `-?` -->
+<!-- > multiple conditions could be supported using (?is.numeric) & (?"^a") for instance. -->
+<!-- > Also the answer to a question is logical, not character -->
+<!-- > means we cannot do `c("foo", ?is.numeric)` any more but we can do `s("foo", ?is.numeric)`  -->
+<!-- > OR `names(.x) == "foo" | ?is.numeric` so not a big deal  -->
+<!-- > var1:var2 should return a logical too for consistency, by overriding `:` (check if both symbols exist), or be available only in s() -->
+
+```{r}
+vars <- list(var1 = sym("cyl"), var2 = sym("am"))
+```
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `select(mtcars, !!!vars)`             | `mtcars[{vars} := names(vars)]` |
+
+```{r}
+vars <- c(var1 = "cyl", var2 ="am")
+```
+
+
+
+Our solution is the same for cases.
+
+
+## `select_all()`
+
+same as `rename_all` below.
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `select_all(mtcars, toupper)`              | `mtcars[{?".*"} := toupper(.)]`             |
+
+## `select_at()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|-|
+| `select_at(mtcars, vars(-contains("ar"), starts_with("c")), toupper)` | `mtcars[s(-?"ar",?"^c")][{?".*"} := toupper(.)]`
+
+*dplyr* functions are usually designed to do only one thing, the renaming
+option of select is an exception, presumably to avoid verbosity. We don't
+have the verbosity issue so we do it in two steps.
+
+## `select_if()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|-|
+| `select_if(iris, is.numeric)` | `iris[,?is.numeric]`|
+| `select_if(iris, is.numeric, toupper)` | `mtcars[?is.numeric][{?".*"} := toupper(.)]`| 
+
+## `rename()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `rename(iris, petal_length = Petal.Length)` | `iris[{"Petal.Length"} := "petal_length"]`|
+
+Another way to rename is `iris[((petal_length)) := Petal.Length]` . The double
+parenthesis syntax means that variables seen on the right hand side will be
+removed after the operation.
+
+A difference in this case is that the "renamed" column will be at the right end of the data frame.
+
+
+```{r}
+vars <- c(var1 = "cyl", var2 ="am")
+```
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `rename(mtcars, !!vars)` | `mtcars[{vars} := names(vars)]`|
+
+
+## `rename_all()`
+
+same as `select_all()` above.
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `rename_all(mtcars, toupper)` | `mtcars[{?".*"} := toupper(.)]` |
+
+## `rename_at()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `rename_at(mtcars, vars(-(1:3)), toupper)` | `mtcars[{-(1:3)} := toupper(.)]` |
+
+## `rename_if()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `rename_if(iris, is.numeric, toupper)` | `iris[{?is.numeric} := toupper(.)]` |
+
+## `mutate()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `mtcars %>%`<br>&ensp;`mutate(``cyl2 = cyl * 2, cyl4 = cyl2 * 2)` | `mtcars[cyl2 = cyl * 2, cyl4 = cyl2 * 2]` |
+| `mtcars %>%`<br>&ensp;`mutate(mpg = NULL, disp = disp * 0.0163871)` | `mtcars[mpg = NULL, disp = disp * 0.0163871]` |
+| `mtcars %>%`<br>&ensp;`group_by(cyl) %>%`<br>&ensp;`mutate(rank = min_rank(desc(mpg))) %>%`<br>&ensp;`ungroup()` | `mtcars[rank = rank(-mpg, "min") ~ cyl]` | 
+| `starwars %>%`<br>&ensp;`group_by(gender) %>%`<br>&ensp;`mutate(mass / mean(mass, na.rm = TRUE)) %>%`<br>&ensp;`pull()` | `starwars[x = mass / mean(mass, na.rm = TRUE) ~ gender][[1]]` 
+
+```{r}
+vars <- c("mass", "height")
+mass <- 100
+```
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `starwars %>% mutate(`<br>&ensp;`prod = .data[[vars[[1]]]] * .data[[vars[[2]]]])` | `starwars[prod = prod(+.x[vars])]` |
+| `mutate(starwars, mass = mass / !!mass)` | `starwars[mass = mass / .(mass)]` |
+
+## `mutate_all()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| ` ` | ` ` |
+
+## `mutate_if()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `starwars %>%`<br>&ensp;`mutate_if(is.numeric, scale2, na.rm = TRUE)` | `starwars[(?is.numeric) := scale2(., na.rm = TRUE)]` |
+| `iris %>%`<br>&ensp;`mutate_if(is.factor, as.character)` | `starwars[(?is.factor) := as.character(.)]` |
+| `iris %>%`<br>&ensp;`mutate_if(is.double, as.integer)` | `starwars[(?is.double) := as.integer(.)]` |
+
+We don't have a simple way to to the following operations at the moment but
+once we deal with df columns and unpacking we can do
+`iris[(?is.numeric) := tb(scale = scale2(.), log = log(.)), unpack = c(?is.numeric, sep = "_")]` and then unpack with a separator
+
+```{r}
+iris %>% mutate_if(is.numeric, lst(max, log))
+
+scale2 <- function(x, na.rm = FALSE) (x - mean(x, na.rm = na.rm)) / sd(x, na.rm)
+iris %>% mutate_if(is.numeric, list(~scale2(.), ~log(.)))
+iris %>% mutate_if(is.numeric, list(scale = scale2, log = log))
+iris %>% mutate_if(is.numeric, list(scale2))
+iris %>% mutate_if(is.numeric, list(scale = scale2))
+```
+
+
+
+
+## `mutate_at()`
+
+```{r}
+
+```
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `starwars %>%`<br>&ensp;`mutate_at(c("height", "mass"), scale2)` | `starwars[c("height", "mass") := scale2(.)]` |
+| `starwars %>%`<br>&ensp;`mutate_at(c("height", "mass"), scale2, na.rm = TRUE)` | `starwars[c("height", "mass") := scale2(., na.rm = TRUE)]` |
+| `starwars %>%`<br>&ensp;`mutate_at(c("height", "mass"), ~scale2(., na.rm = TRUE))` | `starwars[c("height", "mass") := scale2(., na.rm = TRUE)]` |
+| `iris %>% mutate_at(vars(matches("Sepal")), log)` | `iris[(?"Sepal") := log(.)]` |
+
+
+## `transmute()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `mtcars %>%`<br>&ensp;`transmute(displ_l = disp / 61.0237)` | `starwars[c("height", "mass") := scale2(.)]` |
+
+
+## `transmute_all()`
+
+
+## `transmute_if()`
+
+
+## `transmute_at()`
+
+<!-- ## `morph()` -->
+
+<!-- `morph()` was a variant of `mutate()` / `transmute()` considered for *dplyr* -->
+<!-- but not implemented so far, which would remove its inputs. -->
+
+## `summarize()`
+
+|   dplyr                               |            tb           |
+|---------------------------------------|-------------------------|
+| `mtcars %>%`<br>&ensp;`summarise(mean = mean(disp), n = n())` | `mtcars[mean = mean(disp), n = nrow(.x), by = NA]` |
+| `mtcars %>%`<br>&ensp;`group_by(cyl) %>%`<br>&ensp;`summarise(mean = mean(disp), n = n())` | `mtcars[mean = mean(disp), n = nrow(.subset), by = "cyl"]` |
+| `mtcars %>%`<br>&ensp;`group_by(cyl, vs) %>%`<br>&ensp;`summarise(cyl_n = n())` | `mtcars[cyl_n = nrow(.subset), by = c("cyl", "vs")]` |
+| `mtcars %>%`<br>&ensp;`group_by(cyl) %>%`<br>&ensp;`summarise(disp = mean(disp),`<br>&ensp;`sd = sd(disp), double_disp = disp * 2)` | `mtcars[disp = mean(disp), sd = sd(disp),`<br>&ensp;`double_disp = disp * 2, by = "cyl"]` |
+| `` | `` |
+| `` | `` |
+| `` | `` |
+| `` | `` |
+
+> Here use by = TRUE, or maybe better by NA ? Or maybe change code so by doesn't have a default value, then use .by = NULL, or any value of length(0) to summarize without grouping, this is consistent as the more you add columns the more add rows.
+
+
+```{r}
+var <- "mass"
+summarise(starwars, avg = mean(.data[[var]], na.rm = TRUE))
+starwars[avg = mean(.subset[[var]], na.rm = TRUE), by=NA]
+
+# For more complex cases, knowledge of tidy evaluation and the
+# unquote operator `!!` is required. See https://tidyeval.tidyverse.org/
+#
+# One useful and simple tidy eval technique is to use `!!` to
+# bypass the data frame and its columns. Here is how to divide the
+# column `mass` by an object of the same name:
+mass <- 100
+summarise(starwars, avg = mean(mass / !!mass, na.rm = TRUE))
+starwars[avg = mean(mass / .(mass), na.rm = TRUE), by=NA]
+
+```
+
+## `summarize_all()`
+
+```{r}
+
+# If you want to apply multiple transformations, pass a list of
+# functions. When there are multiple functions, they create new
+# variables instead of modifying the variables in place:
+iris %>%
+  group_by(Species) %>%
+  summarise_all(list(min, max))
+
+# Note how the new variables include the function name, in order to
+# keep things distinct. Passing purrr-style lambdas often creates
+# better default names:
+iris %>%
+  group_by(Species) %>%
+  summarise_all(list(~min(.), ~max(.)))
+
+# When that's not good enough, you can also supply the names explicitly:
+iris %>%
+  group_by(Species) %>%
+  summarise_all(list(min = min, max = max))
+
+# When there's only one function in the list, it modifies existing
+# variables in place. Give it a name to create new variables instead:
+iris %>%
+  group_by(Species) %>% 
+  summarise_all(list(med = median))
+
+iris %>%
+  group_by(Species) %>% 
+  summarise_all(list(Q3 = quantile), probs = 0.75)
+
+```
+
+## `summarize_if()`
+
+```{r}
+# The _if() variants apply a predicate function (a function that
+# returns TRUE or FALSE) to determine the relevant subset of
+# columns. Here we apply mean() to the numeric columns:
+starwars %>%
+  summarise_if(is.numeric, mean, na.rm = TRUE)
+```
+
+## `summarize_at()`
+
+```{r}
+# The _at() variants directly support strings:
+starwars %>%
+  summarise_at(c("height", "mass"), mean, na.rm = TRUE)
+starwars[c("height", "mass") := mean(.), .by = NA]
+
+# You can also supply selection helpers to _at() functions but you have
+# to quote them with vars():
+starwars %>%
+  summarise_at(vars(height:mass), mean, na.rm = TRUE)
+starwars[height:mass := mean(.), .by = NA]
+```
+
+## `count()`, `tally()`, `àdd_count()`, `add_tally()`
+
+```{r}
+mtcars %>% tally()
+mtcars %>% group_by(cyl) %>% tally()
+tb(n=nrow(mtcars)) 
+
+mtcars %>% count(cyl)
+mtcars[n = nrow(.subset), .by = "cyl"]
+
+mtcars %>% add_tally()
+mtcars[n = nrow(.x)]
+
+mtcars %>% add_count(cyl)
+mtcars[n = nrow(.subset) ~ cyl]
+
+
+species <-
+ starwars %>%
+ count(species, homeworld, sort = TRUE)
+species
+starwars[n = nrow(.subset), .by = c("species", "homeworld")]
+
+species %>% count(species, sort = TRUE)
+starwars[n = length(unique(homeworld)), .by = "species"]
+
+species <-
+ starwars %>%
+ count(species, homeworld, sort = TRUE, name = "n_species_by_homeworld")
+starwars[n_species_by_homeworld = nrow(.subset), .by = c("species", "homeworld")]
+
+species
+species %>%
+ count(species, sort = TRUE, name = "n_species")
+starwars[n_species = length(unique(homeworld)), .by = "species"]
+# add_count() is useful for groupwise filtering
+# e.g.: show details for species that have a single member
+starwars %>%
+  add_count(species) %>%
+  filter(n == 1)
+starwars[species %in#% 1, n=1]
+starwars[n = nrow(.subset) ~ species][n==1,]
+```
+
+
+> note, we should have L <- NROW, works on list, gives number of rows for data.frames
+
+
+## `left_join`, `right_join`, `semi_join`, `full_join`, `antijoin`
+
+## `bind_cols` `bind_rows`
+
+## `distinct` `distinct_at` `distinct_all` `distinct_if``
+
+
+
+<!-- ## `count()` -->
+
+<!-- ```{r} -->
+<!-- # doesn't seem to work right -->
+<!-- sw[n = nrow(.), .by  = "eye_color"] -->
+<!-- ``` -->
+
+
+<!-- ## `mutate()` -->
+
+<!-- ```{r} -->
+<!-- sw[1:4, 1:3, height = height/100] -->
+<!-- sw[1:4, 1:3, height_cm = height/100] -->
+<!-- sw[1:4, 1:6, height = mean(height) ~ eye_color] -->
+<!-- x <- "height_cm" # or x <- quote(height_cm) -->
+<!-- sw[1:4, 1:3, {x} := height/100] -->
+<!-- sw[1:4, 1:3, `{x}` = height/100] -->
+<!-- ``` -->
+
+<!-- ## `mutate_if()` -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # not supported yet, 2 options, 1st expr below or 2 latter -->
+<!-- sw[1:4, 1:3, ?is.numeric := log(..)] -->
+<!-- sw[1:4, 1:3, ?is.numeric := log] -->
+<!-- sw[1:4, 1:3, ?is.numeric := ~log(.)] -->
+<!-- ``` -->
+
+<!-- ## `transmute()` -->
+
+<!-- ```{r} -->
+<!-- sw[1:4, height_cm = height/100, .rm = TRUE] -->
+<!-- sw[1:4, height = height/100, .rm = TRUE] -->
+<!-- ``` -->
+
+<!-- Not completely sure about this one, alternatives would be : -->
+<!-- * 1) A special value for `.j` : `sw[1:4, NULL, height_cm = height/100]` -->
+<!-- * 2) Use `.j` as in *data.table* and consider that it is still "subsetting"  -->
+<!--   (as `transmute()` is really `SELECT` in SQL): `sw[1:4, slct(height_cm = height/100)]` -->
+<!-- * 3) Use `[[` as a `with()` to compute unnamed arguments, so we'd do `sw[[,tb(height_cm = height/100)]]` -->
+<!-- * 4) Just use `with()` and we don't need `transmute()` : `with(sw, tb(height_cm = height/100)) -->
+
+<!-- An argument to keep the `.rm` is that it could be `NA` by default so when we use -->
+<!-- `.by` it acts as if it is `TRUE`, and when mutating acts as if it is `FALSE`. -->
+
+<!-- setting to `FALSE` when summarizing would `nest()` (or rather `chop()`) all remaining columns. -->
+
+<!-- ## `morph()` -->
+
+<!-- `morph()` was a variant of `mutate()` / `transmute()` considered for *dplyr* -->
+<!-- but not implemented so far, which would remove its inputs. -->
+
+<!-- ```{r} -->
+<!-- sw[1:4, 1:6, (bmi) := mass / ((height/100)^2)] -->
+<!-- ``` -->
+
+<!-- ## `summarize()` -->
+
+<!-- ```{r} -->
+<!-- sw[mean_height = mean(height, na.rm = TRUE), .by = "gender"] -->
+<!-- ``` -->
+
+<!-- ## `nest()` -->
+
+<!-- Nesting is a special case of summarizing, but keeping extra columns -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # not supported yet! -->
+<!-- # chopping each column -->
+<!-- sw[by=Species, .rm = FALSE] -->
+<!-- # nesting relevant columns -->
+<!-- sw[Petal = data.frame(Petal.Width, Petal.Length), .by="Species"] -->
+<!-- ``` -->
+
+<!-- ## `pack()` -->
+
+<!-- Nesting is a special case of summarizing, but keeping extra columns -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # not supported yet! -->
+<!-- sw[Petal = data.frame(Petal.Width, Petal.Length)] -->
+<!-- ``` -->
+
+<!-- ## `rename()` -->
+
+<!-- ```{r} -->
+<!-- sw[1:4, 1:6, (HEIGHT) := height] -->
+<!-- ``` -->
+
+<!-- Not sure if there is room to implement `rename_if()` / `rename_at()`, -->
+<!-- they're also not frequent calls so it might be good to be more explicit and use the *dplyr* functions. -->
+
+<!-- ## `spread()` / `pivot_longer` -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # not supported yet -->
+<!-- sw[`mean_height_{eye_color}` = mean(height), .by = "gender"] -->
+<!-- ``` -->
+
+<!-- ## `gather()` -->
+
+<!-- A call to a function, e.g. `keyval()` will gather the columns in nested data frames. -->
+
+<!-- To end up with a longer table we need then to use the argument `unchop` or `unnest`, which we might rename. -->
+
+<!-- we have several options here too, not necessarily exclusive : -->
+
+<!-- ```{r} -->
+<!-- # color is a nested data frame, that we unnest in the same call -->
+<!-- # sw[(color) := keyval(hair_color, skin_color, eye_color), .unnest = "color"] -->
+
+<!-- # key and value are packed columns, using zealot semantics, that we unchop in the same call -->
+<!-- # sw[c("key", "value") := keyval(hair_color, skin_color, eye_color), .unnest = TRUE] -->
+<!-- ``` -->
+
+<!-- ## `bind_rows()`, `` -->
+
+<!-- It's not really an operation "inside of a table" so not sure if it needs to be -->
+<!-- supported or how we'd do it. -->
+
+<!-- ## `bind_cols()` -->
+
+<!-- It's equivalent to splicing another table. -->
+
+<!-- Either we make splicing systematic for unnamed args and we can do : -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[,,tb2] -->
+<!-- ``` -->
+
+<!-- Or we splice using unary `+` and do -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[,, +tb2] -->
+<!-- ``` -->
+
+<!-- Another way using or "zeallot like" semantics would be : -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[names(tb2) := tb2] -->
+<!-- ``` -->
+
+<!-- which doesn't require additional functionality but is somewhat redundant. -->
+
+<!-- ## `extract()` -->
+
+<!-- I think we can use `unglue_data()` to replace it completely if we splice : -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb[,, +unglue_data(.,col, "{new_col1} foo {new_col2}")] -->
+<!-- ``` -->
+
+<!-- ## `left_joins()` -->
+
+<!-- I think only `left_join()` makes sense inside the df. -->
+
+<!-- We could just do (without using the unary `+` to splice): -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[,, tb2[,cols_tb2]] -->
+<!-- ``` -->
+
+<!-- in case of different `.by` cols, renaming is not more verbose than `.by` specifications : -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[,, tb2[(new) := old]] -->
+<!-- ``` -->
+
+<!-- It's annoying though to have to specify the `.by` column if we just want to grab -->
+<!-- a couple columns from `tb2`. -->
+
+<!-- So we could define some special helper to work only inside `tb`s. -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # take 2 columns, no need to mention by cols -->
+<!-- tb1[,, lj(tb2, col_a, col_b)] -->
+<!-- ``` -->
+
+<!-- Or something like this, where `by_col` is searched in both `tb1` and `tb2` :  -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb1[, tb2[,c("col_a","col_b")] ~ by_col] -->
+<!-- tb1[, tb2[,c("col_a","col_b")] ~ c(by_col1 = "by_col2")] -->
+<!-- ``` -->
+
+<!-- Or maybe a double formula ? -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- # natural left join  -->
+<!-- tb1[, ~tb2] -->
+<!-- # natural join with column selection -->
+<!-- tb1[, tb2 ~ c("col_a","col_b")] -->
+<!-- # equivalent to -->
+<!-- tb1[, ~tb2[,c("by_col","col_a","col_b")]] -->
+<!-- # take all columns, but mention 'by' cols -->
+<!-- tb1[, tb2 ~~ by_col] -->
+<!-- # mention all -->
+<!-- tb1[, tb2 ~ c("col_a","col_b") ~ by_col] -->
+<!-- # the most complex case -->
+<!-- tb1[, tb2 ~ c("col_a","col_b") ~ c(by_col1 = "by_col2")] -->
+<!-- # and we can imagine (but we'll need to have fun parsing bc of precedence) -->
+<!-- tb1[, tb2 ~ ?is.numeric ~ c(by_col1 = "by_col2")] -->
+<!-- ``` -->
+
+<!-- It might not be that bad because as we have a formula and not a data fame -->
+<!-- we can splice automatically all unnamed arguments that are not formulas -->
+<!-- (and don't start with `?`). -->
+
+<!-- It's also the more compact we'll get. -->
+
+<!-- ## `complete()`, `expand()`, `fill()` -->
+
+<!-- There could be a `.complete` argument that would be triggered on output but not -->
+<!-- much value compared to separate call ? -->
+
+<!-- same for `expand()`, `fill()` -->
+
+<!-- ## `separate()`, `separate_rows()`, `unite()` -->
+
+<!-- `separate()` could be done by using a specific function and the output would -->
+<!-- be spliced, but most cases are taken care of by `unglue_data()` very conveniently : -->
+
+<!-- ```{r, eval = FALSE} -->
+<!-- tb[, +unglue_data(old, "{this} and {that}")] -->
+<!-- ``` -->
+
+
+<!-- I think `separate_rows()` too, using `unglue_vec(x, "{x}, {x}, {x}", multiple = c)` and unchopping the column in the end. -->
+
+<!-- `unite()` is just `tb[(new) := paste(col1,col2,sep="_")]`  -->
+
+<!-- and we could define `fuse()` as a `paste()` with the ability to remove NAs and  -->
+<!-- `_` as a default separator, and `fuse0()` (just for NAs) -->
+
+
+<!-- ### rolling joins -->
+
+<!-- It's cool to be able to do complicated things in so few keystrokes with -->
+<!-- *data.table*, but maybe not so valuable, we could get creative with join notation -->
+<!-- but it's not that important, and data.table is already there if needed. -->
+
+<!-- ### mapping -->
+
+
+
+
+<!-- `dplyr::rowwise()` is ugly and imposes to  every mutate call to be rowwise. -->
+
+<!-- `map()` or `lapply()` look bad in mutate calls, though we can get used to them, -->
+<!-- and we need `pmap()` or `Map()` when vectorizing on several arguments, and we lose -->
+<!-- autocomplete, We can do better. -->
+
+<!-- `Vectorize()` is ugly as well, but is the start to a solution.  -->
+
+<!-- What about marking the argument, so that the function knows we should vectorize -->
+<!-- along this one ? The following would nest by row (different alternatives): -->
+
+<!-- ```{r} -->
+<!-- # easiest -->
+<!-- sw[colors := data.frame(?hair_color, ?skin_color, ?eye_color)]  -->
+<!-- # to mark difference with other uses of `?` -->
+<!-- sw[colors := data.frame(?+hair_color, ?+skin_color, ?+eye_color)] -->
+<!-- # v like vectorize ? -->
+<!-- sw[colors := data.frame(v?hair_color, v?skin_color, v?eye_color)] -->
+<!-- # or with `:` ? -->
+<!-- sw[colors := data.frame(v:hair_color, v:skin_color, v:eye_color)] -->
+<!-- sw[colors := data.frame(v:+hair_color, v:+skin_color, v:+eye_color)] -->
+<!-- # both following are not too bad! just issue of confusion with splicing and join notation -->
+<!-- sw[colors := data.frame(++hair_color, ++skin_color, ++eye_color)] -->
+<!-- sw[colors := data.frame(~~hair_color, ~~skin_color, ~~eye_color)]  -->
+<!-- sw[colors := data.frame(v~~hair_color, v~~skin_color, v~~eye_color)]  -->
+<!-- # this adds brackets, but really does look like something different -->
+<!-- sw[colors := data.frame((+hair_color), (+skin_color), (+eye_color))] -->
+<!-- # this is more readable but brakets remind of glue -->
+<!-- sw[colors := data.frame({+hair_color}, {+skin_color}, {+eye_color})] -->
+<!-- # this is readable but probably will be confusing -->
+<!-- sw[colors := data.frame(V[hair_color], V[skin_color], V[eye_color])] -->
+<!-- ``` -->
+
+<!-- Note that we could define a tag to do `tag$data.frame(?hair_color, ?skin_color, ?eye_color)`, which could be a first step, and nice to use elsewhere. -->
+
+<!-- In `[` we could do without it by looking for `?` everywhere and adapting the parent call -->
+<!-- to use `Vectorize()`, but it'll be slow. -->
+
+<!-- A `v:+foo` or `v~~foo` system can be generalized into a broader system of prefixes, -->
+<!-- used for joins,for select_if etc... -->
+
+<!-- Opinion now : `~~foo` and `(+foo)` are best. -->

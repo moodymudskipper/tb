@@ -3,528 +3,477 @@
 
 # tb
 
-An experiment to see if I can come up with an interface that solves my
-frustration with both the *tidyverse* and *data.table* worlds.
-
-This will most probably not get anywhere, is unlikely to ever be stable
-and extremely messy at time of writing, might also stay as is forever.
-
-<!-- ## Principles -->
-
-<!-- * no assignment by reference (unless we add a `by_ref = FALSE` arg later) -->
-
-<!-- * standard data.frame syntax should work as much as possible (unlike *data.table* and -->
-
-<!-- more like *tibble*, decision towards) -->
-
-<!-- * arguments are dotted because we use `...` for our `mutate()` and `summarize()` -->
-
-<!-- functionalities. -->
-
-<!-- * `.i` is called only for subsetting, we might feed it a data.frame to do a semi join, -->
-
-<!-- as *data.table* did initially, but no right joins as it does now. -->
-
-<!-- * `.j` called only for selection in the SQL sense, which means selecting and transmuting in -->
-
-<!-- the *dplyr* sense. *data.table* uses `.j` for transforming/mutating. -->
-
-<!-- * `:=` is an extension of `=` and behaves just the same in the general case, so `tb[mutated_col = foo]` is the same as `tb[mutated_col := foo]` (i.e. not fed to `.i` ultimately) -->
-
-<!-- * Using `.by` means aggregation by group (we consistently get one row by unique set of `.by` column values), while "mutating by" is done by using two sided formulas : `tb[mutated_col = expr ~ by_col]`, because we never do this on many columns, AND we often want to do regular `mutate()` calls next to `mutate()` "by" calls. -->
-
-<!-- * No RIGHT join by feeding df to first arg, but we'll find a way to do LEFT joins (grow the table) -->
-
-<!-- * will support `spread()` through *glue* like syntax like ``mtcars_tb[ `mean_mpg_{cyl}` = mean(mpg), .by = "vs"]`` -->
-
-<!-- * `.()` will work as in `bquote()`, not as in *data.table*, providing a partial alternative to the *rlang* stuff, we might use `..(foo)` as a similar alternative to rlang's `{{foo}}` -->
-
-<!-- * *dotdot* semantics are supported so we can do `iris_tb[Species = toupper(..)]` -->
-
-<!-- * used columns are removed by parentheses on lhs such as in `iris_tb[(Sepal.Area) := Sepal.Width * Sepal.Length]`. Note : data.table uses this for evaluating the name or a string inside the -->
-
-<!-- brackets to  -->
-
-<!-- , removing `Sepal.Width` and `Sepal.Length` (by using `all.vars()` on expression) -->
-
-<!-- * We can use `.x` anywhere to refer to source table and `.` to refer to `.SD` (and as said above, `..` for lhs of equalities) -->
-
-<!-- * we use `?` to `select_if()` or `mutate_if()` such as in `iris_tb[,?is.numeric]`  -->
-
-<!--   and `iris_tb[?is.numeric := log(..)]` -->
-
-<!-- * ideally should support all main transformations from *dplyr*, *tidyr* and *data.table* -->
-
-<!-- * performance is an afterthought. -->
-
-<!-- * A `%tb>%` pipe will be offered so we can write `iris %tb>% .[Species := toupper(..)]` and use tb syntax -->
-
-<!-- for a single operation without "commiting" to the class. -->
-
-<!-- ## setup -->
-
-<!-- ```{r} -->
-
-<!-- library(tb) -->
-
-<!-- sw <- as_tb(dplyr::starwars) -->
-
-<!-- ``` -->
-
-<!-- ## `slice()` -->
-
-<!-- ```{r} -->
-
-<!-- # subsetting with numeric index -->
-
-<!-- sw[1:2,] -->
-
-<!-- # subsetting with logical index, recycled -->
-
-<!-- sw[c(T,F)] -->
-
-<!-- # slicing along groups -->
-
-<!-- sw[1:2 ~ gender] -->
-
-<!-- sw[1:2 ~ gender + eye_color] -->
-
-<!-- ``` -->
-
-<!-- ## `filter()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[height > 220] -->
-
-<!-- ``` -->
-
-<!-- ## `select()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[,1:3] -->
-
-<!-- sw[, hair_color:eye_color] -->
-
-<!-- sw[, c(T,F)] -->
-
-<!-- sw[, c("hair_color", "skin_color", "eye_color")] -->
-
-<!-- ``` -->
-
-<!-- ## `select_if()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[, ?is.numeric] -->
-
-<!-- ``` -->
-
-<!-- ## `arrange()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[order(height)][1:3,1:4] -->
-
-<!-- ``` -->
-
-<!-- ## `count()` -->
-
-<!-- ```{r} -->
-
-<!-- # doesn't seem to work right -->
-
-<!-- sw[n = nrow(.), .by  = "eye_color"] -->
-
-<!-- ``` -->
-
-<!-- ## `mutate()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[1:4, 1:3, height = height/100] -->
-
-<!-- sw[1:4, 1:3, height_cm = height/100] -->
-
-<!-- sw[1:4, 1:6, height = mean(height) ~ eye_color] -->
-
-<!-- x <- "height_cm" # or x <- quote(height_cm) -->
-
-<!-- sw[1:4, 1:3, {x} := height/100] -->
-
-<!-- sw[1:4, 1:3, `{x}` = height/100] -->
-
-<!-- ``` -->
-
-<!-- ## `mutate_if()` -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # not supported yet, 2 options, 1st expr below or 2 latter -->
-
-<!-- sw[1:4, 1:3, ?is.numeric := log(..)] -->
-
-<!-- sw[1:4, 1:3, ?is.numeric := log] -->
-
-<!-- sw[1:4, 1:3, ?is.numeric := ~log(.)] -->
-
-<!-- ``` -->
-
-<!-- ## `transmute()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[1:4, height_cm = height/100, .rm = TRUE] -->
-
-<!-- sw[1:4, height = height/100, .rm = TRUE] -->
-
-<!-- ``` -->
-
-<!-- Not completely sure about this one, alternatives would be : -->
-
-<!-- * 1) A special value for `.j` : `sw[1:4, NULL, height_cm = height/100]` -->
-
-<!-- * 2) Use `.j` as in *data.table* and consider that it is still "subsetting"  -->
-
-<!--   (as `transmute()` is really `SELECT` in SQL): `sw[1:4, slct(height_cm = height/100)]` -->
-
-<!-- * 3) Use `[[` as a `with()` to compute unnamed arguments, so we'd do `sw[[,tb(height_cm = height/100)]]` -->
-
-<!-- * 4) Just use `with()` and we don't need `transmute()` : `with(sw, tb(height_cm = height/100)) -->
-
-<!-- An argument to keep the `.rm` is that it could be `NA` by default so when we use -->
-
-<!-- `.by` it acts as if it is `TRUE`, and when mutating acts as if it is `FALSE`. -->
-
-<!-- setting to `FALSE` when summarizing would `nest()` (or rather `chop()`) all remaining columns. -->
-
-<!-- ## `morph()` -->
-
-<!-- `morph()` was a variant of `mutate()` / `transmute()` considered for *dplyr* -->
-
-<!-- but not implemented so far, which would remove its inputs. -->
-
-<!-- ```{r} -->
-
-<!-- sw[1:4, 1:6, (bmi) := mass / ((height/100)^2)] -->
-
-<!-- ``` -->
-
-<!-- ## `summarize()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[mean_height = mean(height, na.rm = TRUE), .by = "gender"] -->
-
-<!-- ``` -->
-
-<!-- ## `nest()` -->
-
-<!-- Nesting is a special case of summarizing, but keeping extra columns -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # not supported yet! -->
-
-<!-- # chopping each column -->
-
-<!-- sw[by=Species, .rm = FALSE] -->
-
-<!-- # nesting relevant columns -->
-
-<!-- sw[Petal = data.frame(Petal.Width, Petal.Length), .by="Species"] -->
-
-<!-- ``` -->
-
-<!-- ## `pack()` -->
-
-<!-- Nesting is a special case of summarizing, but keeping extra columns -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # not supported yet! -->
-
-<!-- sw[Petal = data.frame(Petal.Width, Petal.Length)] -->
-
-<!-- ``` -->
-
-<!-- ## `rename()` -->
-
-<!-- ```{r} -->
-
-<!-- sw[1:4, 1:6, (HEIGHT) := height] -->
-
-<!-- ``` -->
-
-<!-- Not sure if there is room to implement `rename_if()` / `rename_at()`, -->
-
-<!-- they're also not frequent calls so it might be good to be more explicit and use the *dplyr* functions. -->
-
-<!-- ## `spread()` / `pivot_longer` -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # not supported yet -->
-
-<!-- sw[`mean_height_{eye_color}` = mean(height), .by = "gender"] -->
-
-<!-- ``` -->
-
-<!-- ## `gather()` -->
-
-<!-- A call to a function, e.g. `keyval()` will gather the columns in nested data frames. -->
-
-<!-- To end up with a longer table we need then to use the argument `unchop` or `unnest`, which we might rename. -->
-
-<!-- we have several options here too, not necessarily exclusive : -->
-
-<!-- ```{r} -->
-
-<!-- # color is a nested data frame, that we unnest in the same call -->
-
-<!-- # sw[(color) := keyval(hair_color, skin_color, eye_color), .unnest = "color"] -->
-
-<!-- # key and value are packed columns, using zealot semantics, that we unchop in the same call -->
-
-<!-- # sw[c("key", "value") := keyval(hair_color, skin_color, eye_color), .unnest = TRUE] -->
-
-<!-- ``` -->
-
-<!-- ## `bind_rows()`, `` -->
-
-<!-- It's not really an operation "inside of a table" so not sure if it needs to be -->
-
-<!-- supported or how we'd do it. -->
-
-<!-- ## `bind_cols()` -->
-
-<!-- It's equivalent to splicing another table. -->
-
-<!-- Either we make splicing systematic for unnamed args and we can do : -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[,,tb2] -->
-
-<!-- ``` -->
-
-<!-- Or we splice using unary `+` and do -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[,, +tb2] -->
-
-<!-- ``` -->
-
-<!-- Another way using or "zeallot like" semantics would be : -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[names(tb2) := tb2] -->
-
-<!-- ``` -->
-
-<!-- which doesn't require additional functionality but is somewhat redundant. -->
-
-<!-- ## `extract()` -->
-
-<!-- I think we can use `unglue_data()` to replace it completely if we splice : -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb[,, +unglue_data(.,col, "{new_col1} foo {new_col2}")] -->
-
-<!-- ``` -->
-
-<!-- ## `left_joins()` -->
-
-<!-- I think only `left_join()` makes sense inside the df. -->
-
-<!-- We could just do (without using the unary `+` to splice): -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[,, tb2[,cols_tb2]] -->
-
-<!-- ``` -->
-
-<!-- in case of different `.by` cols, renaming is not more verbose than `.by` specifications : -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[,, tb2[(new) := old]] -->
-
-<!-- ``` -->
-
-<!-- It's annoying though to have to specify the `.by` column if we just want to grab -->
-
-<!-- a couple columns from `tb2`. -->
-
-<!-- So we could define some special helper to work only inside `tb`s. -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # take 2 columns, no need to mention by cols -->
-
-<!-- tb1[,, lj(tb2, col_a, col_b)] -->
-
-<!-- ``` -->
-
-<!-- Or something like this, where `by_col` is searched in both `tb1` and `tb2` :  -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb1[, tb2[,c("col_a","col_b")] ~ by_col] -->
-
-<!-- tb1[, tb2[,c("col_a","col_b")] ~ c(by_col1 = "by_col2")] -->
-
-<!-- ``` -->
-
-<!-- Or maybe a double formula ? -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- # natural left join  -->
-
-<!-- tb1[, ~tb2] -->
-
-<!-- # natural join with column selection -->
-
-<!-- tb1[, tb2 ~ c("col_a","col_b")] -->
-
-<!-- # equivalent to -->
-
-<!-- tb1[, ~tb2[,c("by_col","col_a","col_b")]] -->
-
-<!-- # take all columns, but mention 'by' cols -->
-
-<!-- tb1[, tb2 ~~ by_col] -->
-
-<!-- # mention all -->
-
-<!-- tb1[, tb2 ~ c("col_a","col_b") ~ by_col] -->
-
-<!-- # the most complex case -->
-
-<!-- tb1[, tb2 ~ c("col_a","col_b") ~ c(by_col1 = "by_col2")] -->
-
-<!-- # and we can imagine (but we'll need to have fun parsing bc of precedence) -->
-
-<!-- tb1[, tb2 ~ ?is.numeric ~ c(by_col1 = "by_col2")] -->
-
-<!-- ``` -->
-
-<!-- It might not be that bad because as we have a formula and not a data fame -->
-
-<!-- we can splice automatically all unnamed arguments that are not formulas -->
-
-<!-- (and don't start with `?`). -->
-
-<!-- It's also the more compact we'll get. -->
-
-<!-- ## `complete()`, `expand()`, `fill()` -->
-
-<!-- There could be a `.complete` argument that would be triggered on output but not -->
-
-<!-- much value compared to separate call ? -->
-
-<!-- same for `expand()`, `fill()` -->
-
-<!-- ## `separate()`, `separate_rows()`, `unite()` -->
-
-<!-- `separate()` could be done by using a specific function and the output would -->
-
-<!-- be spliced, but most cases are taken care of by `unglue_data()` very conveniently : -->
-
-<!-- ```{r, eval = FALSE} -->
-
-<!-- tb[, +unglue_data(old, "{this} and {that}")] -->
-
-<!-- ``` -->
-
-<!-- I think `separate_rows()` too, using `unglue_vec(x, "{x}, {x}, {x}", multiple = c)` and unchopping the column in the end. -->
-
-<!-- `unite()` is just `tb[(new) := paste(col1,col2,sep="_")]`  -->
-
-<!-- and we could define `fuse()` as a `paste()` with the ability to remove NAs and  -->
-
-<!-- `_` as a default separator, and `fuse0()` (just for NAs) -->
-
-<!-- ### rolling joins -->
-
-<!-- It's cool to be able to do complicated things in so few keystrokes with -->
-
-<!-- *data.table*, but maybe not so valuable, we could get creative with join notation -->
-
-<!-- but it's not that important, and data.table is already there if needed. -->
-
-<!-- ### mapping -->
-
-<!-- `dplyr::rowwise()` is ugly and imposes to  every mutate call to be rowwise. -->
-
-<!-- `map()` or `lapply()` look bad in mutate calls, though we can get used to them, -->
-
-<!-- and we need `pmap()` or `Map()` when vectorizing on several arguments, and we lose -->
-
-<!-- autocomplete, We can do better. -->
-
-<!-- `Vectorize()` is ugly as well, but is the start to a solution.  -->
-
-<!-- What about marking the argument, so that the function knows we should vectorize -->
-
-<!-- along this one ? The following would nest by row (different alternatives): -->
-
-<!-- ```{r} -->
-
-<!-- # easiest -->
-
-<!-- sw[colors := data.frame(?hair_color, ?skin_color, ?eye_color)]  -->
-
-<!-- # to mark difference with other uses of `?` -->
-
-<!-- sw[colors := data.frame(?+hair_color, ?+skin_color, ?+eye_color)] -->
-
-<!-- # v like vectorize ? -->
-
-<!-- sw[colors := data.frame(v?hair_color, v?skin_color, v?eye_color)] -->
-
-<!-- # or with `:` ? -->
-
-<!-- sw[colors := data.frame(v:hair_color, v:skin_color, v:eye_color)] -->
-
-<!-- sw[colors := data.frame(v:+hair_color, v:+skin_color, v:+eye_color)] -->
-
-<!-- # both following are not too bad! just issue of confusion with splicing and join notation -->
-
-<!-- sw[colors := data.frame(++hair_color, ++skin_color, ++eye_color)] -->
-
-<!-- sw[colors := data.frame(~~hair_color, ~~skin_color, ~~eye_color)]  -->
-
-<!-- sw[colors := data.frame(v~~hair_color, v~~skin_color, v~~eye_color)]  -->
-
-<!-- # this adds brackets, but really does look like something different -->
-
-<!-- sw[colors := data.frame((+hair_color), (+skin_color), (+eye_color))] -->
-
-<!-- # this is more readable but brakets remind of glue -->
-
-<!-- sw[colors := data.frame({+hair_color}, {+skin_color}, {+eye_color})] -->
-
-<!-- # this is readable but probably will be confusing -->
-
-<!-- sw[colors := data.frame(V[hair_color], V[skin_color], V[eye_color])] -->
-
-<!-- ``` -->
-
-<!-- Note that we could define a tag to do `tag$data.frame(?hair_color, ?skin_color, ?eye_color)`, which could be a first step, and nice to use elsewhere. -->
-
-<!-- In `[` we could do without it by looking for `?` everywhere and adapting the parent call -->
-
-<!-- to use `Vectorize()`, but it'll be slow. -->
-
-<!-- A `v:+foo` or `v~~foo` system can be generalized into a broader system of prefixes, -->
-
-<!-- used for joins,for select_if etc... -->
-
-<!-- Opinion now : `~~foo` and `(+foo)` are best. -->
+An experiment to create `data.table-esque` interface integrating all
+major tidyverse data transformations, but more compact, and not faster\!
+:).
+
+Not sure where it will go.
+
+<https://github.com/moodymudskipper/tb/issues/1>
+
+## general syntax
+
+The general syntax is `tb1[.i, .j, ..., .by]` (more args will come)
+
+  - `.i` is for row subsetting only, similar to *data.table* but feeding
+    a data.frame to it doesn’t do a **right join** but a semi join.
+  - `.j` is for column selection in the SQL sense, so column subsetting
+    with optional column creation (the latter not implemented yet).
+  - `...` is for mutating or summarizing expressions (and will be used
+    for **left joins** too in the future)
+  - `.by` is for mentionning columns to **aggregate** by. Aggregation
+    means we **consistently** get as many rows as distinct groups, to
+    aggregate without groups, feed a length 0 object to `.by`. **NOT**
+    used to “mutate by”\!
+
+<!-- end list -->
+
+``` r
+# setup
+library(tb)
+library(tidyverse, warn.conflicts = FALSE) # for comparison
+mtcars_tb <- as_tb(mtcars)
+mtcars_tb$cyl <- factor(mtcars_tb$cyl,ordered=TRUE)
+```
+
+``` r
+# demo
+mtcars_tb[mpg > 31,]
+#> # A tb: 2 x 11 
+#>                 mpg cyl disp hp drat    wt  qsec vs am gear carb
+#> Fiat 128       32.4   4 78.7 66 4.08 2.200 19.47  1  1    4    1
+#> Toyota Corolla 33.9   4 71.1 65 4.22 1.835 19.90  1  1    4    1
+mtcars_tb[disp = mean(disp), drat = mean(drat), .by = "cyl"]
+#>   cyl     disp     drat
+#> 1   6 183.3143 3.585714
+#> 2   4 105.1364 4.070909
+#> 3   8 353.1000 3.229286
+```
+
+## Advanced features
+
+  - No need to convert a data frame to a `tb`, we can just pipe the
+    input into `%tb>%` for one call and we’ll get back an object of the
+    same class as the input:
+
+<!-- end list -->
+
+``` r
+mtcars %tb>% .[disp = mean(disp), drat = mean(drat), .by = "cyl"]
+#>   cyl     disp     drat
+#> 1   6 183.3143 3.585714
+#> 2   4 105.1364 4.070909
+#> 3   8 353.1000 3.229286
+```
+
+  - `.` can be used in the `...` so mutating/summarizing arguments can
+    refer to themselves :
+
+<!-- end list -->
+
+``` r
+mtcars_tb[disp = mean(.), drat = mean(.), .by = "cyl"]
+#>   cyl     disp     drat
+#> 1   6 183.3143 3.585714
+#> 2   4 105.1364 4.070909
+#> 3   8 353.1000 3.229286
+```
+
+  - `?` can be used anywhere (`.i`, `.j`, `...` or `.by`) to select with
+    a predicate or a regular expression.
+
+<!-- end list -->
+
+``` r
+mtcars_tb[disp = mean(.), drat = mean(.), .by = ?is.factor]
+#>   cyl     disp     drat
+#> 1   6 183.3143 3.585714
+#> 2   4 105.1364 4.070909
+#> 3   8 353.1000 3.229286
+```
+
+  - `:=` can be used as a replacement for `=` anywhere (if used as a
+    first argument it is not fed to `.i` just like it wouldn’t with `=`)
+    but it supports more features, such as this usage of `.` :
+
+<!-- end list -->
+
+``` r
+mtcars_tb[c("disp", "drat") := mean(.), .by = ?is.factor]
+#>   cyl     disp     drat
+#> 1   6 183.3143 3.585714
+#> 2   4 105.1364 4.070909
+#> 3   8 353.1000 3.229286
+```
+
+That makes a convenient `summarize_at` mixed with `summarize`, or
+`summarize_all`
+
+``` r
+mtcars_tb[(?"^d") := mean(.), wt = median(.), .by = ?is.factor]
+#>   cyl     disp     drat    wt
+#> 1   6 183.3143 3.585714 3.215
+#> 2   4 105.1364 4.070909 2.200
+#> 3   8 353.1000 3.229286 3.755
+mtcars_tb[(?"^.*") := max(.), .by = c()] # or .by = NULL
+#>    mpg cyl disp  hp drat    wt qsec vs am gear carb
+#> 1 33.9   8  472 335 4.93 5.424 22.9  1  1    5    8
+```
+
+  - As long as the lhs is not a symbol it will be evaluated
+
+<!-- end list -->
+
+``` r
+mtcars_tb[paste0("di","sp") := mean(.), .by = ?is.factor]
+#>   cyl     disp
+#> 1   6 183.3143
+#> 2   4 105.1364
+#> 3   8 353.1000
+```
+
+  - To “mutate by”, we use a formula notation, and we prefer to say
+    “along” than “by” to make the distinction clear with aggregation.
+    We can easily mix it with ungrouped transformations
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:4, mean_gear = mean(gear) ~ carb, vs_and_am = vs & am]
+#> # A tb: 4 x 13 
+#>                 mpg cyl disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4      21.0   6  160 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21.0   6  160 110 3.90 2.875 17.02  0  1    4    4
+#> Datsun 710     22.8   4  108  93 3.85 2.320 18.61  1  1    4    1
+#> Hornet 4 Drive 21.4   6  258 110 3.08 3.215 19.44  1  0    3    1
+#>                mean_gear vs_and_am
+#> Mazda RX4            4.0     FALSE
+#> Mazda RX4 Wag        4.0     FALSE
+#> Datsun 710           3.5      TRUE
+#> Hornet 4 Drive       3.5     FALSE
+```
+
+  - We can also “slice along”
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:2 ~ cyl, ] # with data.table : mtcars_dt[, .SD[1:2], by = cyl]
+#> # A tb: 6 x 11 
+#>                 mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4      21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21.0   6 160.0 110 3.90 2.875 17.02  0  1    4    4
+#> Merc 450SE     16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
+#> Merc 450SL     17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
+#> Honda Civic    30.4   4  75.7  52 4.93 1.615 18.52  1  1    4    2
+#> Toyota Corolla 33.9   4  71.1  65 4.22 1.835 19.90  1  1    4    1
+```
+
+  - `:` can be used between col names
+
+<!-- end list -->
+
+``` r
+mtcars_tb[disp:drat]
+#> # A tb: 32 x 3 
+#>                    disp  hp drat
+#> Mazda RX4         160.0 110 3.90
+#> Mazda RX4 Wag     160.0 110 3.90
+#> Datsun 710        108.0  93 3.85
+#> Hornet 4 Drive    258.0 110 3.08
+#> Hornet Sportabout 360.0 175 3.15
+#> Valiant           225.0 105 2.76
+#> Duster 360        360.0 245 3.21
+#> Merc 240D         146.7  62 3.69
+#> Merc 230          140.8  95 3.92
+#> Merc 280          167.6 123 3.92
+#> # ... with  22  more rows
+```
+
+  - `.()` has the same meaning as in `bquote()` not as in data.table \!
+
+<!-- end list -->
+
+``` r
+x <- "foo"
+y <- c("bar", "baz")
+mtcars_tb[1:2, .(x) := .(y)]
+#> # A tb: 2 x 12 
+#>               mpg cyl disp  hp drat    wt  qsec vs am gear carb foo
+#> Mazda RX4      21   6  160 110  3.9 2.620 16.46  0  1    4    4 bar
+#> Mazda RX4 Wag  21   6  160 110  3.9 2.875 17.02  0  1    4    4 baz
+```
+
+  - `s()` is a selection helper, a bit like `dplyr::vars()`, can be use
+    for negative subetting or just to spare quotes.
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:2,s(-?is.numeric,drat, qsec:am)]
+#> # A tb: 2 x 5 
+#>               cyl drat  qsec vs am
+#> Mazda RX4       6  3.9 16.46  0  1
+#> Mazda RX4 Wag   6  3.9 17.02  0  1
+```
+
+  - We can access in any argument the source table with `.x`, the
+    sliced/selected data after application of `.i` and `.j` with
+    `.data`, and the subset of data with `.subset`, can be useful for
+    advanced filtering :
+
+<!-- end list -->
+
+``` r
+library(matrixStats)
+#> 
+#> Attaching package: 'matrixStats'
+#> The following object is masked from 'package:dplyr':
+#> 
+#>     count
+mtcars_tb[rowAlls(.x > 150),] # rather than `filter_all(mtcars, all_vars(. > 150))`
+#> # A tb: 0 x 11 
+#>  [1] mpg  cyl  disp hp   drat wt   qsec vs   am   gear carb
+#> <0 rows> (or 0-length row.names)
+mtcars_tb[rowAnys(.x > 150),] # rather than `filter_all(mtcars, any_vars(. > 150))`
+#> # A tb: 21 x 11 
+#>                    mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4         21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag     21.0   6 160.0 110 3.90 2.875 17.02  0  1    4    4
+#> Hornet 4 Drive    21.4   6 258.0 110 3.08 3.215 19.44  1  0    3    1
+#> Hornet Sportabout 18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2
+#> Valiant           18.1   6 225.0 105 2.76 3.460 20.22  1  0    3    1
+#> Duster 360        14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4
+#> Merc 280          19.2   6 167.6 123 3.92 3.440 18.30  1  0    4    4
+#> Merc 280C         17.8   6 167.6 123 3.92 3.440 18.90  1  0    4    4
+#> Merc 450SE        16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
+#> Merc 450SL        17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
+#> # ... with  11  more rows
+mtcars_tb[rowAnys(.x[?"^d"] %% 2 == 0),]
+#> # A tb: 13 x 11 
+#>                      mpg cyl disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4           21.0   6  160 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag       21.0   6  160 110 3.90 2.875 17.02  0  1    4    4
+#> Datsun 710          22.8   4  108  93 3.85 2.320 18.61  1  1    4    1
+#> Hornet 4 Drive      21.4   6  258 110 3.08 3.215 19.44  1  0    3    1
+#> Hornet Sportabout   18.7   8  360 175 3.15 3.440 17.02  0  0    3    2
+#> Duster 360          14.3   8  360 245 3.21 3.570 15.84  0  0    3    4
+#> Cadillac Fleetwood  10.4   8  472 205 2.93 5.250 17.98  0  0    3    4
+#> Lincoln Continental 10.4   8  460 215 3.00 5.424 17.82  0  0    3    4
+#> Chrysler Imperial   14.7   8  440 230 3.23 5.345 17.42  0  0    3    4
+#> Dodge Challenger    15.5   8  318 150 2.76 3.520 16.87  0  0    3    2
+#> # ... with  3  more rows
+# rather than `filter_at(mtcars, vars(starts_with("d")), any_vars((. %% 2) == 0))`
+mtcars_tb[n = nrow(.subset), .by = "cyl"] # counting
+#>   cyl  n
+#> 1   6  7
+#> 2   4 11
+#> 3   8 14
+```
+
+  - unary `+` is used to splice, a bit like `!!!` in the *tidyverse*,
+    except that it doesn’t have to be in `...`, works with any function,
+    and will be evaluated in the context of the table. For example to to
+    sort by all :
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:4,c(1,3,6)][order(+.x),]
+#> # A tb: 4 x 3 
+#>                 mpg disp    wt
+#> Mazda RX4      21.0  160 2.620
+#> Mazda RX4 Wag  21.0  160 2.875
+#> Hornet 4 Drive 21.4  258 3.215
+#> Datsun 710     22.8  108 2.320
+mtcars_tb[1:4,c(1,3,6)][order(+-.x),] # descending
+#> # A tb: 4 x 3 
+#>                 mpg disp    wt
+#> Datsun 710     22.8  108 2.320
+#> Hornet 4 Drive 21.4  258 3.215
+#> Mazda RX4 Wag  21.0  160 2.875
+#> Mazda RX4      21.0  160 2.620
+mtcars_tb[order(+.x[?"^c"]),][1:4,] # arrange_if
+#> # A tb: 4 x 11 
+#>                 mpg cyl  disp hp drat    wt  qsec vs am gear carb
+#> Datsun 710     22.8   4 108.0 93 3.85 2.320 18.61  1  1    4    1
+#> Fiat 128       32.4   4  78.7 66 4.08 2.200 19.47  1  1    4    1
+#> Toyota Corolla 33.9   4  71.1 65 4.22 1.835 19.90  1  1    4    1
+#> Toyota Corona  21.5   4 120.1 97 3.70 2.465 20.01  1  0    3    1
+```
+
+  - surounding the lhs with `((lhs))` means that the rhs variables
+    should be removed
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:2,((vs_and_am)) := vs & am]
+#> # A tb: 2 x 10 
+#>               mpg cyl disp  hp drat    wt  qsec gear carb vs_and_am
+#> Mazda RX4      21   6  160 110  3.9 2.620 16.46    4    4     FALSE
+#> Mazda RX4 Wag  21   6  160 110  3.9 2.875 17.02    4    4     FALSE
+```
+
+  - surrounding the lhs with `{}` means we’re not transforming values
+    but transforming names, so renaming and mutating can be mixed.
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:2,{gear} := "GEAR"]
+#> # A tb: 2 x 11 
+#>               mpg cyl disp  hp drat    wt  qsec vs am GEAR carb
+#> Mazda RX4      21   6  160 110  3.9 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21   6  160 110  3.9 2.875 17.02  0  1    4    4
+mtcars_tb[1:2,((GEAR)) := gear] # this is similar
+#> # A tb: 2 x 11 
+#>               mpg cyl disp  hp drat    wt  qsec vs am carb GEAR
+#> Mazda RX4      21   6  160 110  3.9 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21   6  160 110  3.9 2.875 17.02  0  1    4    4
+mtcars_tb[1:2,{?"^d"} := toupper(.), DRAT = .*100] #rename_at + mutate
+#> # A tb: 2 x 11 
+#>               mpg cyl DISP  hp DRAT    wt  qsec vs am gear carb
+#> Mazda RX4      21   6  160 110  390 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21   6  160 110  390 2.875 17.02  0  1    4    4
+mtcars_tb[1:2,{?"^.*"} := toupper(.)] # rename_all
+#> # A tb: 2 x 11 
+#>               MPG CYL DISP  HP DRAT    WT  QSEC VS AM GEAR CARB
+#> Mazda RX4      21   6  160 110  3.9 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag  21   6  160 110  3.9 2.875 17.02  0  1    4    4
+```
+
+  - Spreading is done just by giving a “glue-like” name to our variable
+    :
+
+<!-- end list -->
+
+``` r
+df <- data.frame(x = c("a", "b"), y = c(3, 4), z = c(5, 6))
+df
+#>   x y z
+#> 1 a 3 5
+#> 2 b 4 6
+spread(df, x, y)
+#>   z  a  b
+#> 1 5  3 NA
+#> 2 6 NA  4
+tb1 <- as_tb(df)
+tb1[`{x}` := y, .by= "z"]
+#>   z  a  b
+#> 1 5  3 NA
+#> 2 6 NA  4
+tb1[`{x}` := y, .by= s(-y)] # integrate "x" in .by to keep the column
+#>   x z  a  b
+#> 1 a 5  3 NA
+#> 2 b 6 NA  4
+```
+
+We can aggregate as with `reshape` or the `reshape2` package :
+
+``` r
+mtcars_tb['mean_draft_for_vs_{vs}' = mean(drat), .by = "am" ]
+#>   am mean_draft_for_vs_0 mean_draft_for_vs_1
+#> 1  1            3.935000            4.148571
+#> 2  0            3.120833            3.570000
+```
+
+It’s very easy to multispread, or even combine with mutating and
+renaming statement :
+
+``` r
+mtcars_tb[
+  'avg_draft_vs_{vs}' = mean(drat),
+  'q2_mpg_cyl_{cyl}' = median(mpg),
+  .by = "am" ]
+#>   am avg_draft_vs_0 avg_draft_vs_1 q2_mpg_cyl_6 q2_mpg_cyl_4 q2_mpg_cyl_8
+#> 1  1       3.935000       4.148571        21.00        28.85         15.4
+#> 2  0       3.120833       3.570000        18.65        22.80         15.2
+```
+
+  - we don’t need to use functionals such as `lapply`, `mapply`, `map`,
+    `pmap`, we can use the `~~` notation instead:
+
+<!-- end list -->
+
+``` r
+# loop on values of vs, am and gear, with a constant value of na.rm
+mtcars_tb[foo = mean(c(~~vs, ~~am, ~~gear), na.rm = TRUE)]
+#> # A tb: 32 x 12 
+#>                    mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4         21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag     21.0   6 160.0 110 3.90 2.875 17.02  0  1    4    4
+#> Datsun 710        22.8   4 108.0  93 3.85 2.320 18.61  1  1    4    1
+#> Hornet 4 Drive    21.4   6 258.0 110 3.08 3.215 19.44  1  0    3    1
+#> Hornet Sportabout 18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2
+#> Valiant           18.1   6 225.0 105 2.76 3.460 20.22  1  0    3    1
+#> Duster 360        14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4
+#> Merc 240D         24.4   4 146.7  62 3.69 3.190 20.00  1  0    4    2
+#> Merc 230          22.8   4 140.8  95 3.92 3.150 22.90  1  0    4    2
+#> Merc 280          19.2   6 167.6 123 3.92 3.440 18.30  1  0    4    4
+#>                        foo
+#> Mazda RX4         1.666667
+#> Mazda RX4 Wag     1.666667
+#> Datsun 710        2.000000
+#> Hornet 4 Drive    1.333333
+#> Hornet Sportabout 1.000000
+#> Valiant           1.333333
+#> Duster 360        1.000000
+#> Merc 240D         1.666667
+#> Merc 230          1.666667
+#> Merc 280          1.666667
+#> # ... with  22  more rows
+# rather than : 
+mutate(mtcars, foo = pmap_dbl(list(vs, am, gear), ~mean(c(...), na.rm = TRUE)))
+#>     mpg cyl  disp  hp drat    wt  qsec vs am gear carb      foo
+#> 1  21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4 1.666667
+#> 2  21.0   6 160.0 110 3.90 2.875 17.02  0  1    4    4 1.666667
+#> 3  22.8   4 108.0  93 3.85 2.320 18.61  1  1    4    1 2.000000
+#> 4  21.4   6 258.0 110 3.08 3.215 19.44  1  0    3    1 1.333333
+#> 5  18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2 1.000000
+#> 6  18.1   6 225.0 105 2.76 3.460 20.22  1  0    3    1 1.333333
+#> 7  14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4 1.000000
+#> 8  24.4   4 146.7  62 3.69 3.190 20.00  1  0    4    2 1.666667
+#> 9  22.8   4 140.8  95 3.92 3.150 22.90  1  0    4    2 1.666667
+#> 10 19.2   6 167.6 123 3.92 3.440 18.30  1  0    4    4 1.666667
+#> 11 17.8   6 167.6 123 3.92 3.440 18.90  1  0    4    4 1.666667
+#> 12 16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3 1.000000
+#> 13 17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3 1.000000
+#> 14 15.2   8 275.8 180 3.07 3.780 18.00  0  0    3    3 1.000000
+#> 15 10.4   8 472.0 205 2.93 5.250 17.98  0  0    3    4 1.000000
+#> 16 10.4   8 460.0 215 3.00 5.424 17.82  0  0    3    4 1.000000
+#> 17 14.7   8 440.0 230 3.23 5.345 17.42  0  0    3    4 1.000000
+#> 18 32.4   4  78.7  66 4.08 2.200 19.47  1  1    4    1 2.000000
+#> 19 30.4   4  75.7  52 4.93 1.615 18.52  1  1    4    2 2.000000
+#> 20 33.9   4  71.1  65 4.22 1.835 19.90  1  1    4    1 2.000000
+#> 21 21.5   4 120.1  97 3.70 2.465 20.01  1  0    3    1 1.333333
+#> 22 15.5   8 318.0 150 2.76 3.520 16.87  0  0    3    2 1.000000
+#> 23 15.2   8 304.0 150 3.15 3.435 17.30  0  0    3    2 1.000000
+#> 24 13.3   8 350.0 245 3.73 3.840 15.41  0  0    3    4 1.000000
+#> 25 19.2   8 400.0 175 3.08 3.845 17.05  0  0    3    2 1.000000
+#> 26 27.3   4  79.0  66 4.08 1.935 18.90  1  1    4    1 2.000000
+#> 27 26.0   4 120.3  91 4.43 2.140 16.70  0  1    5    2 2.000000
+#> 28 30.4   4  95.1 113 3.77 1.513 16.90  1  1    5    2 2.333333
+#> 29 15.8   8 351.0 264 4.22 3.170 14.50  0  1    5    4 2.000000
+#> 30 19.7   6 145.0 175 3.62 2.770 15.50  0  1    5    6 2.000000
+#> 31 15.0   8 301.0 335 3.54 3.570 14.60  0  1    5    8 2.000000
+#> 32 21.4   4 121.0 109 4.11 2.780 18.60  1  1    4    2 2.000000
+```
+
+  - We can use the dollar `$` to pipe, as `mtcars_tb$.` returns
+    `mtcars_tb` by convention, it’s more efficient than a `magrittr`
+    pipe, has better precedence, doesn’t require an extra package and is
+    lighter and easier to type:
+
+<!-- end list -->
+
+``` r
+mtcars_tb[1:20,]$
+  .[,4:9]$
+  .[(?"^.*") := min(.), .by= s(vs,am)]
+#>   vs am  hp drat    wt  qsec
+#> 1  0  1 110 3.90 2.620 16.46
+#> 2  1  1  52 3.85 1.615 18.52
+#> 3  0  0 175 2.93 3.440 15.84
+#> 4  1  0  62 2.76 3.150 18.30
+```

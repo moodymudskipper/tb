@@ -1,3 +1,8 @@
+
+
+
+
+
 test_that("multiplication works", {
   expect_equal(2 * 2, 4)
 })
@@ -58,7 +63,7 @@ glued_data[,,!!!unglue_data(text, "{rownames(.)} has {hp} hp")]
 
 
 # summarize
-sw[,, mean(height, na.rm = TRUE)] # when no .along or .by AND unnamed, raw result
+as_tb(sw)[,, a =mean(height, na.rm = TRUE)] # when no .along or .by AND unnamed, raw result
 
 sw[,, !!!list(a=height, b = eye_color), .rm = TRUE] # when no .along or .by AND unnamed, raw result
 sw[,, mean(height, na.rm = TRUE), .by = "gender"]

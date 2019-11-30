@@ -38,6 +38,7 @@ reparse_dbl_tilde <- function(expr){
 
 
 splice_expr <- function(expr, mask){
+  if(!is.call(expr)) return(expr)
   expr <- as.list(expr)
   expr <- lapply(expr, function(x) {
     if(is.symbol(x)) return(x)

@@ -1,3 +1,15 @@
+expand_expr <- function(expr, where) {
+  # taken right from bquote's code
+  unquote <- function(e) if (is.pairlist(e))
+    as.pairlist(lapply(e, unquote))
+  else if (length(e) <= 1L)
+    e
+  else if (e[[1L]] == as.name("."))
+    eval(e[[2L]], where)
+  else as.call(lapply(e, unquote))
+  unquote(expr)
+}
+
 reparse_dbl_tilde <- function(expr){
   ## counter of arguments to iterate on
   i <- 0
@@ -33,9 +45,6 @@ reparse_dbl_tilde <- function(expr){
   fun <- as.function(c(fun_iter_args, body),envir = parent.frame())
   as.call(c(quote(mapply),fun, all_iter_args))
 }
-
-
-
 
 splice_expr <- function(expr, mask){
   if(!is.call(expr)) return(expr)

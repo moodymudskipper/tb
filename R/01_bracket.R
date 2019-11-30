@@ -1,6 +1,5 @@
-#' Title
+#' Modify a tb object
 #'
-#' desc
 #'
 #' `...` can contain `foo = expr` arguments such as those
 #'
@@ -16,7 +15,6 @@
 #'   removed
 #' @param drop
 #' @param .unchop
-
 #'
 #' @return
 #' @export
@@ -218,15 +216,5 @@
   mask$.data
 }
 
-expand_expr <- function(expr, where) {
-  # taken right from bquote's code
-  unquote <- function(e) if (is.pairlist(e))
-    as.pairlist(lapply(e, unquote))
-  else if (length(e) <= 1L)
-    e
-  else if (e[[1L]] == as.name("."))
-    eval(e[[2L]], where)
-  else as.call(lapply(e, unquote))
-  unquote(expr)
-}
+
 

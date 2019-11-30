@@ -9,7 +9,7 @@ row_subset_by_ref <- function(.i, mask){ #env = parent.frame()){
       ## use regex on rows
       # maybe we should unfeature this
       .i <- grepl(eval(.i[[2]], envir=.x, enclos= mask), rownames(.x))
-      mask$.data <- `[.data.frame`(.x, .i,)
+      mask$.data <- subset_i(.x,.i)
     } else {
       ## extract variables from rhs
       along_vars <- get_all_vars(.i[-2], .x)
@@ -29,13 +29,13 @@ row_subset_by_ref <- function(.i, mask){ #env = parent.frame()){
         }
         .i
       }))
-      mask$.data <- `[.data.frame`(.x, .i, )
+      mask$.data <- subset_i(.x,.i)
     }
   } else {
     if(is.logical(.i)) {
       ## turn NAs to FALSE so we keep only TRUE indices
       .i[is.na(.i)] <- FALSE
-      mask$.data <- `[.data.frame`(.x, .i,)
+      mask$.data <- subset_i(.x,.i)
     } else if (is.data.frame(.i)) {
       ## get the indices by doing a semi join
       class(.i) <- "data.frame"
@@ -44,7 +44,7 @@ row_subset_by_ref <- function(.i, mask){ #env = parent.frame()){
       # ## add a temp column
       mask$.data <-merge(.x, .i)
     } else if (is.numeric(.i) || is.character(.i)) {
-      mask$.data <- `[.data.frame`(.x, .i,)
+      mask$.data <- subset_i(.x,.i)
     }
   }
   invisible()

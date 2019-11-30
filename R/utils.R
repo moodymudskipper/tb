@@ -1,3 +1,30 @@
+# a faster and convenient way to do `[.data.frame(x,i,,drop=FALSE)`
+# it also doesn't upset Rstudio as it has no consecutive comas
+subset_i <- function(x, i){
+  if(is.character(i)) i <- row.names(x) %in% i
+  subset_col <-
+    function(col){
+      if(is.data.frame(col))
+        subset_i(col, i)
+      else
+        col[i]
+    }
+  res <- lapply(x, subset_col)
+  attributes(res) <- attributes(x)
+  attr(res, "row.names") <- attr(x, "row.names")[i]
+  res
+}
+
+# a faster and more compact way to do `[.data.frame(x,j)`
+subset_j <- function(x, i){
+  attr_ <- attributes(x)
+  x <- unclass(x)[i]
+  attr(x, "class") <- attr_$class
+  attr(x, "names") <- attr_$names[i]
+  attr(x, "row.names") <- attr_$row.names
+  x
+}
+
 expand_expr <- function(expr, where) {
   # taken right from bquote's code
   unquote <- function(e) if (is.pairlist(e))

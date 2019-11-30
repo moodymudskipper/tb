@@ -11,7 +11,7 @@ aggregate_tb <- function(dots, mask, .by){
     ## convert to factor to keep groups with NAs
     # this handles .by even if it its a selection objects or if it creates anew column
     by_cols_as_factors <- lapply(
-      `[.data.frame`(.data,,.by, drop=FALSE),
+      subset_j(.data, .by),
       function(x) factor(x, unique(x), exclude = NULL))
 
     ## split data along by columns
@@ -135,10 +135,10 @@ tb_spread <- function(nm, arg, sub_dfs, mask, .by){
 
     ## convert to factor to keep groups with NAs
     spread_cols_as_factors <- lapply(
-      `[.data.frame`(sub_df,col_nms),
+      subset_j(sub_df, col_nms),
       function(x) factor(x, unique(x), exclude = NULL))
     # spread_output
-    spread_output <- unique(`[.data.frame`(sub_df,.by))
+    spread_output <- unique(subset_j(sub_df,.by))
     ## split data along spread columns
     sub_sub_dfs <- split(as.data.frame(sub_df), spread_cols_as_factors,drop = TRUE)
     names(sub_sub_dfs) <- glue::glue_data(unique(sub_df[col_nms]), nm)

@@ -92,10 +92,6 @@ transform2 <- function(nm, expr, mask){
       eval(expr, envir = sub_df, enclos = mask)
     }
 
-    #
-    # fun <- as.function(c(alist(.=), expr))
-    # environment(fun) <- env
-    #if(is.null(.data[[nm]])) .data[[nm]] <- NA # add column if relevant
     res <- rep(NA, nrow(.data))
     split(res, along_vars) <- lapply(sub_dfs, transformation_fun, expr)
     mask$. <- NULL
@@ -106,21 +102,6 @@ transform2 <- function(nm, expr, mask){
   }
   res
 }
-
-# transform2 <- function(.x, expr, nm, env){
-#   res <- eval(expr,envir = build_mask(.x), enclos = env)
-#   if(inherits(res, "formula")){
-#     along_vars <- get_all_vars(res[-2], .x)
-#     expr <- substitute(with(., EXPR), list(EXPR = res[[2]]))
-#     fun <- as.function(c(alist(.=), expr))
-#     environment(fun) <- env
-#     if(is.null(.x[[nm]])) .x[[nm]] <- NA # add column if relevant
-#     split(.x[[nm]], along_vars) <- lapply(split(.x, along_vars), fun)
-#   } else {
-#     .x[[nm]] <- res
-#   }
-#   .x
-# }
 
 reorganize_call_i <- function(mc, .i, .j){
   mc <- as.list(mc)
@@ -186,31 +167,6 @@ summarize_all2 <- function(df, f, by){
   aggregate.data.frame(x, df[by], f)
 }
 
-
-# * handles the .by argument
-# * turns NA to FALSE
-# * ...
-# simplify_i <- function(.x, .i, .by, .along, env = parent.frame()){
-#   # evaluate it in the context of data frame
-#   .i <- eval(.i, envir=.x, enclos= env)
-#   if(is.null(.by) && is.null(.along)){
-#     # turn NAs to FALSE so we keep only TRUE indices
-#     if(is.logical(.i)) .i[is.na(.i)] <- FALSE
-#   } else {
-#     if(!is.numeric(.i)) {
-#       stop("if using `.by` and `.i` non missing, `.i` must be numeric")
-#     }
-#     # build ave call
-#     call <- as.call(c(
-#       quote(ave),                         # ave(
-#       list(x = seq(nrow(.x))),            #   seq(nrow(.x)),
-#       lapply(c(.by, .along), as.symbol),  #   grpvar1, grpvar2, ...,
-#       list(FUN = seq_along)))             #   Fun = seq_along)
-#     .i <- eval(call, envir = .x) %in% .i
-#   }
-#   .i
-# }
-
 starts_with_bbb <- function(expr){
   is.call(expr) &&
     identical(expr[[1]], quote(`!`)) &&
@@ -231,19 +187,12 @@ is_parenthesized_twice <- function(expr){
 }
 
 is_curly_expr <- function(expr){
-  # the lhs expr[[2]] should be a call
-  is.call(expr) &&
-    # expr[[2]][[1]] should be `(`
-    expr[[1]] == quote(`{`)
+  is.call(expr) && expr[[1]] == quote(`{`)
 }
 
 
 is_glue_name <- function(x){
   grepl("\\{.*?\\}",x)
-}
-
-build_mask <- function(x){
-  c(as.list(x), list(. = x, `?` = question_mark))
 }
 
 keyval <- function(..., .key = "key", .value = "value", rm = TRUE) {

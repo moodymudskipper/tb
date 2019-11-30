@@ -114,8 +114,8 @@ test_that("`?` j works with regex", {
   expect_equivalent(iris[1:2], iris_tb[?"^Sepal"])
 })
 
-test_that("`?` j works with formulas", {
-  expect_equivalent(iris[1:4], iris_tb[?~is.numeric(.)])
+test_that("`?` j works with dot expressions", {
+  expect_equivalent(iris[1:4], iris_tb[?is.numeric(.)])
 })
 
 test_that("selection works with s()", {
@@ -133,3 +133,4 @@ test_that("negative selection works with s()", {
   expect_equivalent(iris[c(1:2,5)], iris_tb[s(-?"^Petal")])
   expect_equivalent(iris[-5], iris_tb[s(-?is.factor)])
 })
+

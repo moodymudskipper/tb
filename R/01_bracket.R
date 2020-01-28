@@ -75,18 +75,18 @@
 
   ## reorganize call if labelled args are fed to .i or .j
 
-
   dots0 <- list()
   # if(any(tb_names(sc, env = pf) %in% c(".i", ".j")))
   #   stop("`.i` and `.j` should not be named")
-
 
   if(is_specified(sc[3])){
     # if 1st bracket arg is specified, .i and .j can only be missing and we sort out the call
     other_args <- sc[-(1:3)]
     .i <- substitute()
     .j <- substitute()
-    if(any (!vapply(split(other_args, seq_along(other_args)), is_specified, logical(1))))
+    any_dot_is_unspecified <-
+      any(!vapply(split(other_args, seq_along(other_args)), is_specified, logical(1)))
+    if(any_dot_is_unspecified)
       stop(".i must be given first, left blank, or omitted, but cannot be given after another specified argument")
 
     # if .i and/or .j are labelled, we must take their content and add it to the dots
@@ -111,7 +111,8 @@
     if(length(sc) >3 && is_specified(sc[4])){
       .j <- substitute()
       other_args <- sc[-(1:4)]
-      if(any (!vapply(split(other_args,seq_along(other_args)), is_specified, logical(1))))
+      any_dot_is_unspecified <- any (!vapply(split(other_args,seq_along(other_args)), is_specified, logical(1)))
+      if(any_dot_is_unspecified)
         stop(".j must be given second, left blank, or omitted, but cannot be given after another specified argument")
       if(is_labelled(sc[[4]])) {
         dots0[[1]] <- expand_expr(sc[[4]], pf)

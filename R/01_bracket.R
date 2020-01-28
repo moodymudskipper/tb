@@ -34,7 +34,8 @@
   pf <- parent.frame()
   sc <- as.list(sys.call())
   # if call is tb[], return tb
-  if(length(sc) == 3 && identical(sc[[3]], substitute())) return(.X)
+  no_arg_between_brackets <- length(sc) == 3 && identical(sc[[3]], substitute())
+  if(no_arg_between_brackets) return(.X)
 
   mask <- new.env(parent = pf)
   mask[[".X"]] <- .X

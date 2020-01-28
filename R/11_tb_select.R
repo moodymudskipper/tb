@@ -105,7 +105,7 @@ s <- function(...){
 
 # sequence notation was not implemented yet!
 
-# tb_select <- function(.x, .j, env){
+# tb_select <- function(.X, .j, env){
 #   arg_nms <- tb_names(.j)
 #   s_nms <- character(0)
 #   for(i in seq_along(.j)){
@@ -122,20 +122,20 @@ s <- function(...){
 #                 is.symbol(arg[[2]]) &&
 #                 is.symbol(arg[[3]])){
 #         ## replace .j call by a numeric sequence
-#         nms <- names(.x)
+#         nms <- names(.X)
 #         .j1 <- match(as.character(arg[[2]]), nms)
 #         .j2 <- match(as.character(arg[[3]]), nms)
 #         .j <- s_nms <- nms[.j1:.j2]
 #       } else {
 #         ## evaluate arg in the context of df and mask
-#         arg <- eval(arg, envir=c(as.list(.x), list(.x = .x, `?` = question_mark)), enclos= env)
+#         arg <- eval(arg, envir=c(as.list(.X), list(.X = .X, `?` = question_mark)), enclos= env)
 #
 #         if (inherits(arg, "formula")){
 #           one_sided_formula_lgl <- length(arg) == 2
 #           if(one_sided_formula_lgl) {
 #             ## use regex on col names
-#             arg_lgl <- grepl(eval(arg[[2]], env), names(.x))
-#             arg <- names(.x)[arg_lgl]
+#             arg_lgl <- grepl(eval(arg[[2]], env), names(.X))
+#             arg <- names(.X)[arg_lgl]
 #
 #           } else {
 #             stop("unnamed 2 sided formulas are not supported in `s()`")
@@ -169,8 +169,8 @@ tb_args <- function(args, env){
   list(names = nms, exprs = exprs)
 }
 
-tb_transmute <- function(.x, .j, env){
-  .x
+tb_transmute <- function(.X, .j, env){
+  .X
   # implement mutate first
 }
 

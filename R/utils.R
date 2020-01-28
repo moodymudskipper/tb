@@ -1,3 +1,39 @@
+splt <- function(x, into, sep = "[^[:alnum:]]+",
+                 convert = FALSE, extra = "warn", fill = "warn"){
+  x <- as.character(x)
+  x2 <- strsplit(x, sep, perl = TRUE)
+  if(missing(into)) into <- paste0("V",seq_len(max(lengths(x2))))
+  n_into <- length(into)
+  x2 <- lapply(x2, function(elt){
+    if(length(elt) > n_into) {
+      elt <- switch(
+        extra,
+        warn = {
+          warning("extra elts are ignored")
+          elt[seq_len(n_into)]
+        },
+        drop = elt[seq_len(n_into)],
+        merge = c(elt[seq_len(n_into-1)],
+                  paste(elt[n_into:length(elt)], collapse = ""))
+      )
+    } else if (length(elt) < n_into) {
+      elt <- switch(
+        fill,
+        warn = {
+          warning("adding NAs")
+          c(elt, rep(NA, n_into - length(elt)))
+        },
+        right = c(elt, rep(NA, n_into - length(elt))),
+        left = c(rep(NA, n_into - length(elt)), elt))
+    }
+    names(elt) <- into
+    elt
+  })
+  res <- as.data.frame(do.call("rbind", x2))
+  if(convert) res <- type.convert(res, as.is = TRUE)
+  res
+}
+
 # a faster and convenient way to do `[.data.frame(x,i,,drop=FALSE)`
 # it also doesn't upset Rstudio as it has no consecutive comas
 subset_i <- function(x, i){
@@ -20,7 +56,7 @@ subset_j <- function(x, i){
   attr_ <- attributes(x)
   x <- unclass(x)[i]
   attr(x, "class") <- attr_$class
-  attr(x, "names") <- attr_$names[i]
+  attr(x, "names") <- if(is.character(i)) i else  attr_$names[i]
   attr(x, "row.names") <- attr_$row.names
   x
 }
@@ -94,7 +130,7 @@ has_splice_prefix <- function(x){
 }
 
 is_specified <- function(arg) {
-  !is.null(names(arg)) || is_labelled(arg[[1]])
+  (!is.null(names(arg)) && names(arg) != "") || is_labelled(arg[[1]])
 }
 
 # a deparse that doesnt choke on `{`

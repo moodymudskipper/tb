@@ -11,6 +11,9 @@ License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-    testthat (>= 2.1.0)
+    testthat (>= 2.1.0),
+    knitr,
+    rmarkdown
 URL: https://github.com/moodymudskipper/tb
 BugReports: https://github.com/moodymudskipper/tb/issues
+VignetteBuilder: knitr

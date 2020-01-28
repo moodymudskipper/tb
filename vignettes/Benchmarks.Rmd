@@ -1,0 +1,131 @@
+---
+title: "Benchmarks"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Benchmarks}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+) 
+```
+
+We propose a few benchmarks to compare *tb* to *data.table*, *dplyr* or *tidyr*.
+*tb* is not focused on speed, so this is to be seen as a sanity check rather than
+a thorough report on *tb*'s speed. 
+
+The conclusion is that *tb* is that *tb* is doing ok and is
+generally between *base R* and packages cited above.
+
+We take the *mtcars* dataset and convert it to *tb*, *data.table*, and *tbl_df*, 
+then apply our benchmark on this small dataset and on the same, replicated to
+be `1e4` times longer.
+
+```{r setup, message = FALSE}
+library(knitr)
+library(tb)
+library(tidyverse)
+library(data.table)
+
+mtcars_dt <- as.data.table(mtcars)
+mtcars_tb <- as_tb(mtcars)
+mtcars_tbl_df <- as_tibble(mtcars)
+
+mtcars2 <- do.call(rbind, replicate(10000, mtcars, F))
+mtcars_dt2 <- as.data.table(mtcars2)
+mtcars_tb2 <- as_tb(mtcars2)
+mtcars_tbl_df2 <- as_tibble(mtcars2)
+```
+
+## row subsetting
+
+```{r}
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  base1 = subset(mtcars, disp < 80),
+  base2 = mtcars[mtcars$disp < 80,],
+  data.table = mtcars_dt[disp<80],
+  tb = mtcars_tb[disp<80,],
+  dplyr = filter(mtcars_tbl_df, disp<80)) %>%
+  kable()
+
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  base1 = subset(mtcars2, disp < 80),
+  base2 = mtcars2[mtcars2$disp < 80,],
+  data.table = mtcars_dt2[disp<80],
+  tb = mtcars_tb2[disp<80,],
+  filter(mtcars_tbl_df2, disp<80)) %>%
+  kable()
+```
+
+## Column subsetting
+
+*tb* is doing well. There is only an overhead for big tables when using 
+*data.table* strangely.
+
+```{r}
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  mtcars[3],
+  mtcars_dt[,3],
+  mtcars_tb[,3],
+  select(mtcars_tbl_df, 3))
+
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  mtcars2[3],
+  mtcars_dt2[,3],
+  mtcars_tb2[,3],
+  select(mtcars_tbl_df2, 3))
+```
+
+## Creating new columns
+
+```{r}
+mtcars_dt_copy <- data.table::copy(mtcars_dt)
+mtcars_dt_copy2 <- data.table::copy(mtcars_dt2)
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  transform(mtcars, mpg_cyl = mpg * cyl),
+  mtcars_dt_copy[, mpg_cyl := mpg * cyl],
+  mtcars_tb[mpg_cyl = mpg * cyl],
+  mutate(mtcars, mpg_cyl = mpg * cyl))
+
+bench::mark(
+  time_unit = "us",
+  check=FALSE,
+  transform(mtcars2, mpg_cyl = mpg * cyl),
+  mtcars_dt_copy2[, mpg_cyl := mpg * cyl],
+  mtcars_tb2[mpg_cyl = mpg * cyl],
+  mutate(mtcars2, mpg_cyl = mpg * cyl))
+```
+
+## Aggregating
+
+*tb* is on par with base R, even a bit faster, but not competitive with *data.table* and *dplyr*.
+
+```{r}
+bench::mark(
+  check=FALSE,
+  aggregate(mpg ~ cyl, mtcars, mean),
+  mtcars_dt[, .(mpg = mean(mpg)), by = cyl],
+  mtcars_tb[,mpg = mean(mpg), .by = "cyl"],
+  mtcars_tbl_df %>% group_by(cyl) %>% summarize(mpg= mean(mpg)))
+
+bench::mark(
+  check=FALSE,
+  aggregate(mpg ~ cyl, mtcars2, mean),
+  mtcars_dt2[, .(mpg = mean(mpg)), by = cyl],
+  mtcars_tb2[,mpg = mean(mpg), .by = "cyl"],
+  mtcars_tbl_df2 %>% group_by(cyl) %>% summarize(mpg= mean(mpg)))
+```

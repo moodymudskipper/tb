@@ -217,7 +217,7 @@ mtcars_tb[1:2,s(-?is.numeric,drat, qsec:am)]
 #> Mazda RX4 Wag   6  3.9 17.02  0  1
 ```
 
-  - We can access in any argument the source table with `.x`, the
+  - We can access in any argument the source table with `.X`, the
     sliced/selected data after application of `.i` and `.j` with
     `.data`, and the subset of data with `.subset`, can be useful for
     advanced filtering :
@@ -231,11 +231,11 @@ library(matrixStats)
 #> The following object is masked from 'package:dplyr':
 #> 
 #>     count
-mtcars_tb[rowAlls(.x > 150),] # rather than `filter_all(mtcars, all_vars(. > 150))`
+mtcars_tb[rowAlls(.X > 150),] # rather than `filter_all(mtcars, all_vars(. > 150))`
 #> # A tb: 0 x 11 
 #>  [1] mpg  cyl  disp hp   drat wt   qsec vs   am   gear carb
 #> <0 rows> (or 0-length row.names)
-mtcars_tb[rowAnys(.x > 150),] # rather than `filter_all(mtcars, any_vars(. > 150))`
+mtcars_tb[rowAnys(.X > 150),] # rather than `filter_all(mtcars, any_vars(. > 150))`
 #> # A tb: 21 x 11 
 #>                    mpg cyl  disp  hp drat    wt  qsec vs am gear carb
 #> Mazda RX4         21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4
@@ -249,7 +249,7 @@ mtcars_tb[rowAnys(.x > 150),] # rather than `filter_all(mtcars, any_vars(. > 150
 #> Merc 450SE        16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
 #> Merc 450SL        17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
 #> # ... with  11  more rows
-mtcars_tb[rowAnys(.x[?"^d"] %% 2 == 0),]
+mtcars_tb[rowAnys(.X[?"^d"] %% 2 == 0),]
 #> # A tb: 13 x 11 
 #>                      mpg cyl disp  hp drat    wt  qsec vs am gear carb
 #> Mazda RX4           21.0   6  160 110 3.90 2.620 16.46  0  1    4    4
@@ -279,21 +279,21 @@ mtcars_tb[n = nrow(.subset), .by = "cyl"] # counting
 <!-- end list -->
 
 ``` r
-mtcars_tb[1:4,c(1,3,6)][order(+.x),]
+mtcars_tb[1:4,c(1,3,6)][order(+.X),]
 #> # A tb: 4 x 3 
 #>                 mpg disp    wt
 #> Mazda RX4      21.0  160 2.620
 #> Mazda RX4 Wag  21.0  160 2.875
 #> Hornet 4 Drive 21.4  258 3.215
 #> Datsun 710     22.8  108 2.320
-mtcars_tb[1:4,c(1,3,6)][order(+-.x),] # descending
+mtcars_tb[1:4,c(1,3,6)][order(+-.X),] # descending
 #> # A tb: 4 x 3 
 #>                 mpg disp    wt
 #> Datsun 710     22.8  108 2.320
 #> Hornet 4 Drive 21.4  258 3.215
 #> Mazda RX4 Wag  21.0  160 2.875
 #> Mazda RX4      21.0  160 2.620
-mtcars_tb[order(+.x[?"^c"]),][1:4,] # arrange_if
+mtcars_tb[order(+.X[?"^c"]),][1:4,] # arrange_if
 #> # A tb: 4 x 11 
 #>                 mpg cyl  disp hp drat    wt  qsec vs am gear carb
 #> Datsun 710     22.8   4 108.0 93 3.85 2.320 18.61  1  1    4    1

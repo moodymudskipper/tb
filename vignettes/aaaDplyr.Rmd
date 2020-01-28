@@ -1,0 +1,42 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  eval = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+# tb
+
+An experiment to see if I can come up with an interface that
+solves my frustration with both the *tidyverse* and *data.table* worlds.
+
+This will most probably not get anywhere, is unlikely to ever be stable and 
+extremely messy at time of writing, might also stay as is forever.
+
+## helper functions
+
+`tb` focuses on what happens in `[.tb`, it indeed exports only :
+* `tb()` for creation
+* `[.tb` for transformation
+* `as_tb()` for conversion
+* `is_tb()` to detect the `"tb"` class
+* `s()` as a selection utility to be used in `[.tb`
+
+Other functions can of course be used in `tb`, in particular the
+`data.table`, `matrixStats` `zoo`, and `inops` contain many useful functions to use
+inside `[.tb`. In particular these will come in handy : 
+* `matrixStats::rowAnys()`
+* `matrixStats::rowAlls()`
+* `data.table::rleid()`
+* `data.table::fcoalesce()`
+* `zoo::rollapply()`
+
+

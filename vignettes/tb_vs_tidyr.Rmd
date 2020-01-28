@@ -1,0 +1,307 @@
+---
+title: "tb vs tidyr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{tb_vs_tidyr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+In this vignette we go through all the examples of *tidyr*'s data wrangling
+functions centered on data frames, and propose an alternative using *tb*.
+
+It's meant as a test of *tb*'s range of possibilities, 
+indeed the *tidyverse* has clear functions which aim mostly at doing a single thing well,
+so listing its functions is like listing features and is a great test for this
+package.
+
+The result of the experiment seem to indicate that *tb* can do most of what *tidyr* can do.
+
+## setup
+
+We'll convert a few well known data sets to *tb*, they are still data frames
+so *tidyverse* functions work on them too.
+
+```{r setup}
+library(tidyverse, warn.conflicts = F)
+library(tb)
+library(unglue)
+library(matrixStats) # for functions `rowAnys()` and `rowAlls()` which will come handy
+mtcars <- as_tb(mtcars)
+iris_tb   <- as_tb(iris)
+fish_encounters_tb <- as_tb(fish_encounters)
+starwars <- as_tb(starwars) # from dplyr
+chickwts <- as_tb(chickwts)
+```
+
+## nest
+
+nest_legacy
+
+```{r}
+# Nest and unnest are inverses
+df <- as_tb(data.frame(x = c(1, 1, 2), y = 3:1))
+
+nest_legacy(df, y)
+df[data = tb(y), .by="x"] # or df[data = .subset["y"], .by="x"]
+
+# nesting -------------------------------------------------------------------
+nest_legacy(iris, -Species)
+iris[data = .subset[s(-Species)], .by = "Species"]
+
+
+nest_legacy(chickwts, weight)
+chickwts[data = tb(weight), .by = "feed"]
+
+```
+
+new nest
+
+```{r}
+df  <- tibble(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
+tb1 <- tb(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
+# Note that we get one row of output for each unique combination of
+# non-nested variables
+df %>% nest(data = c(y, z))
+tb1[data = tb(y, z), .by = "x"]
+
+# use tidyselect syntax and helpers, just like in dplyr::select()
+df %>% nest(data = one_of("y", "z"))
+tb1[data = .subset[c("x", "y")], .by = "x"]
+
+iris %>% nest(data = -Species)
+iris_tb[data = .subset[s(-Species)], .by = "Species"]
+
+nest_vars <- names(iris)[1:4]
+iris %>% nest(data = one_of(nest_vars))
+iris_tb[data = .subset[nest_vars], .by = s(-nest_vars)]
+
+iris %>%
+  nest(petal = starts_with("Petal"), sepal = starts_with("Sepal"))
+iris[petal = .subset[?"^Petal"], sepal = .subset[?"^Sepal"], .by = "Species"]
+
+iris %>%
+  nest(width = contains("Width"), length = contains("Length"))
+iris[width = .subset[?"Width"], length = .subset[?"Length"], .by = "Species"]
+# Nesting a grouped data frame nests all variables apart from the group vars
+library(dplyr)
+fish_encounters %>%
+  group_by(fish) %>%
+  nest()
+fish_encounters[data = .subset[?".*"], .by = "fish"]
+```
+
+
+## unnest
+
+unnest_legacy
+
+```{r}
+
+# unnesting -----------------------------------------------------------------
+df <- tibble(
+  x = 1:2,
+  y = list(
+    tibble(z = 1),
+    tibble(z = 3:4)
+  )
+)
+df %>% unnest_legacy(y)
+
+# You can also unnest multiple columns simultaneously
+df <- tibble(
+  a = list(c("a", "b"), "c"),
+  b = list(1:2, 3),
+  c = c(11, 22)
+)
+df %>% unnest_legacy(a, b)
+# If you omit the column names, it'll unnest all list-cols
+df %>% unnest_legacy()
+
+# unnest() is primarily designed to work with lists of data frames
+df <- tibble(
+  x = 1:3,
+  y = list(
+    NULL,
+    tibble(a = 1, b = 2),
+    tibble(a = 1:3, b = 3:1)
+  )
+)
+df %>% unnest(y)
+df %>% unnest(y, keep_empty = TRUE)
+
+# If you have lists of lists, or lists of atomic vectors, instead
+# see hoist(), unnest_wider(), and unnest_longer()
+
+#' # You can unnest multiple columns simultaneously
+df <- tibble(
+ a = list(c("a", "b"), "c"),
+ b = list(1:2, 3),
+ c = c(11, 22)
+)
+df %>% unnest(c(a, b))
+
+# Compare with unnesting one column at a time, which generates
+# the Cartesian product
+df %>% unnest(a) %>% unnest(b)
+```
+
+## chop
+
+```{r}
+df  <- tibble(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
+tb1 <- tb(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
+df %>% chop(c(y, z))
+tb1[y = list(y), z = list(z), .by = "x"]
+tb1[s(y, z) := list(.), .by = "x"]
+```
+
+## unchop
+
+```{r}
+# Unchop ============================================================
+df <- tibble(x = 1:4, y = list(integer(), 1L, 1:2, 1:3))
+df %>% unchop(y)
+df %>% unchop(y, keep_empty = TRUE)
+
+# Incompatible types -------------------------------------------------
+# If the list-col contains types that can not be natively
+df <- tibble(x = 1:2, y = list("1", 1:3))
+try(df %>% unchop(y))
+df %>% unchop(y, ptype = tibble(y = integer()))
+df %>% unchop(y, ptype = tibble(y = character()))
+df %>% unchop(y, ptype = tibble(y = list()))
+
+# Unchopping data frames -----------------------------------------------------
+# Unchopping a list-col of data frames must generate a df-col because
+# unchop leaves the column names unchanged
+df <- tibble(x = 1:3, y = list(NULL, tibble(x = 1), tibble(y = 1:2)))
+df %>% unchop(y)
+df %>% unchop(y, keep_empty = TRUE)
+```
+
+## pack
+
+```{r}
+# Packing =============================================================
+# It's not currently clear why you would ever want to pack columns
+# since few functions work with this sort of data.
+df <- tibble(x1 = 1:3, x2 = 4:6, x3 = 7:9, y = 1:3)
+tb1 <- tb(x1 = 1:3, x2 = 4:6, x3 = 7:9, y = 1:3)
+df
+df %>% pack(x = starts_with("x"))
+tb1[x = list(.X[?"^x"])][s(-?"x\\d")]
+df %>% pack(x = c(x1, x2, x3), y = y)
+```
+
+
+## unpack
+
+```{r}
+# Unpacking ===========================================================
+df <- tibble(
+  x = 1:3,
+  y = tibble(a = 1:3, b = 3:1),
+  z = tibble(X = c("a", "b", "c"), Y = runif(3), Z = c(TRUE, FALSE, NA))
+)
+df
+df %>% unpack(y)
+df %>% unpack(c(y, z))
+df %>% unpack(c(y, z), names_sep = "_")
+
+```
+
+## extract
+
+```{r}
+df <- data.frame(x = c(NA, "a-b", "a-d", "b-c", "d-e"))
+tb <- as_tb(df)
+df %>% extract(x, "A")
+tb[,,((A)) := unglue_vec(x, "{A}-{B}")]
+tb[,,+unglue_data(x, "{A}-{=.*?}")]
+
+df %>% extract(x, c("A", "B"), "([[:alnum:]]+)-([[:alnum:]]+)")
+tb[,,+unglue_data(x, "{A}-{B}")]
+tb[((c("A","B"))) := unglue_data(x, "{A}-{B}")]
+
+# If no match, NA:
+df %>% extract(x, c("A", "B"), "([a-d]+)-([a-d]+)")
+tb[((c("A","B"))) := unglue_data(x, "{A=[a-d]+}-{B=[a-d]+}")]
+```
+
+## separate
+
+```{r}
+df <- data.frame(x = c(NA, "a.b", "a.d", "b.c"))
+tb <- as_tb(df)
+df %>% separate(x, c("A", "B"))
+tb[,,+splt(x,c("A","B"))]
+tb[((c("A","B"))) := splt(x)]
+# If you just want the second variable:
+df %>% separate(x, c(NA, "B"))
+
+# If every row doesn't split into the same number of pieces, use
+# the extra and fill arguments to control what happens
+df <- data.frame(x = c("a", "a b", "a b c", NA))
+df %>% separate(x, c("a", "b"))
+tb <- as_tb(df)
+tb[,,+splt(x,c("a","b"))][s(-x)]
+tb[((c("a","b"))) := splt(x)]
+
+# The same behaviour drops the c but no warnings
+df %>% separate(x, c("a", "b"), extra = "drop", fill = "right")
+tb[,, +splt(x, c("a", "b"), extra = "drop", fill = "right")]
+# Another option:
+df %>% separate(x, c("a", "b"), extra = "merge", fill = "left")
+tb[,, +splt(x, c("a", "b"), extra = "merge", fill = "left")]
+# Or you can keep all three
+df %>% separate(x, c("a", "b", "c"))
+tb[,, +splt(x, c("a", "b", "c"))]
+
+# If only want to split specified number of times use extra = "merge"
+df <- data.frame(x = c("x: 123", "y: error: 7"))
+df %>% separate(x, c("key", "value"), ": ", extra = "merge")
+tb <- as_tb(df)
+tb[,,+splt(x,c("key","value"), extra = "merge")][s(-x)]
+
+# Use regular expressions to separate on multiple characters:
+df <- data.frame(x = c(NA, "a?b", "a.d", "b:c"))
+df %>% separate(x, c("A","B"), sep = "([\\.\\?\\:])")
+tb <- as_tb(df)
+tb[c("A","B") := splt(x, sep = "([\\.\\?\\:])")][s(-x)]
+
+# convert = TRUE detects column classes
+df <- data.frame(x = c("a:1", "a:2", "c:4", "d", NA))
+df %>% separate(x, c("key","value"), ":") %>% str
+df %>% separate(x, c("key","value"), ":", convert = TRUE) %>% str
+tb <- as_tb(df)
+tb[,,+splt(x,c("key","value"), convert = TRUE)][s(-x)]
+
+# Argument col can take quasiquotation to work with strings
+var <- "x"
+df %>% separate(!!var, c("key","value"), ":")
+tb[,,+splt(.(as.symbol(var)),c("key","value"), convert = TRUE)][s(-.(as.symbol(var)))]
+```
+
+## separate_rows
+
+```{r}
+df <- data.frame(
+  x = 1:3,
+  y = c("a", "d,e,f", "g,h"),
+  z = c("1", "2,3,4", "5,6"),
+  stringsAsFactors = FALSE
+)
+tb <- as_tb(df)
+separate_rows(df, y, z, convert = TRUE)
+tb[s(y,z) := strsplit(., ",")] # needs to be exanded in later step
+```
+

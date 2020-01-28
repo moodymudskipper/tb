@@ -1,5 +1,6 @@
 # evaluate .i in the context of the data frame, handle .by if given
 row_subset_by_ref <- function(.i, mask){
+  if(missing(.i)) return(invisible())
 
   ## evaluate in  mask
   .X <- mask$.X

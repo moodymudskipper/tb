@@ -1,4 +1,6 @@
 col_subset_by_ref <- function(.j, mask, .by){
+  if(missing(.j)) return(invisible())
+  if(missing(.by)) .by <- NULL
   .data <- mask$.data
   if(is.call(.j)){
     ## evaluate .j call in the context of df and mask

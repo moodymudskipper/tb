@@ -97,7 +97,7 @@
   } else {
     # if 1st bracket arg is NOT specified, it's a proper .i, either missing or not
     if(missing(.i)) {
-      .i <- substitute(.i)
+      .i <- substitute()
     } else {
       .i <-expand_expr(substitute(.i), pf)
       .i <- splice_expr(.i, mask)
@@ -118,7 +118,7 @@
     } else {
       # if 2nd bracket arg is NOT specified, it's a proper .j, either missing or not
       if(missing(.j)) {
-        .j <- substitute(.j)
+        .j <- substitute()
       } else {
         .j <-expand_expr(substitute(.j), pf)
         .j <- splice_expr(.j, mask)

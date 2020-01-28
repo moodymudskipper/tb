@@ -34,10 +34,10 @@ test_that("i in the context of the table works", {
     mtcars_tb[mpg < 30,])
 })
 
-test_that("i using .x works", {
+test_that("i using .X works", {
   expect_equivalent(
     mtcars[c("Toyota Corolla", "Toyota Corona"),],
-    mtcars_tb[startsWith(rownames(.x),"Toyota"),])
+    mtcars_tb[startsWith(rownames(.X),"Toyota"),])
 })
 
 test_that("i using regex works", {
@@ -85,19 +85,11 @@ test_that("character j works", {
 
 test_that("numeric j works", {
   expect_equivalent(mtcars[4:5], mtcars_tb[4:5])
-})
-
-test_that("numeric j works", {
-  expect_equivalent(mtcars[4:5, drop = FALSE], mtcars_tb[4:5, drop = FALSE])
-})
-
-test_that("numeric j works", {
+  expect_equivalent(mtcars[,4:5, drop = FALSE], mtcars_tb[,4:5, drop = FALSE])
   expect_equivalent(mtcars[4], mtcars_tb[4])
-})
-
-test_that("numeric j works", {
   expect_equivalent(mtcars[,4, drop = FALSE], mtcars_tb[,4, drop = FALSE])
 })
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # .j advanced subsetting

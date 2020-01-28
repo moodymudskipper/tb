@@ -80,21 +80,21 @@ test_that(":= with a variable evaluated using {} works",{
       .by = "eye_color"]
 )})
 
-
-
-# multi spread with several glue variables works!
-
-dplyr::starwars %tb>%
-  .[gender %in% c("male", "female") &
-      eye_color %in% c("yellow", "blue", "brown") &
-      species %in% c("Human", "Wookiee"),
-    'max_mass_{gender}_{species}' = max(mass, na.rm = TRUE),
-    .by = "eye_color"]
-
-# also we might want to select columns in .i, so maybe using `?` on rownames is not
-# such a good idea
-iris %tb>%
-  .[order(.x[?is.numeric,])]
-
-
-dplyr::starwars %tb>% .[gender == "hermaphrodite",]
+#
+#
+# # multi spread with several glue variables works!
+#
+# dplyr::starwars %tb>%
+#   .[gender %in% c("male", "female") &
+#       eye_color %in% c("yellow", "blue", "brown") &
+#       species %in% c("Human", "Wookiee"),
+#     'max_mass_{gender}_{species}' = max(mass, na.rm = TRUE),
+#     .by = "eye_color"]
+#
+# # also we might want to select columns in .i, so maybe using `?` on rownames is not
+# # such a good idea
+# iris %tb>%
+#   .[order(.X[?is.numeric,])]
+#
+#
+# dplyr::starwars %tb>% .[gender == "hermaphrodite",]

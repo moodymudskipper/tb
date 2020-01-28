@@ -3,7 +3,7 @@
 #'
 #' `...` can contain `foo = expr` arguments such as those
 #'
-#' @param .x teebee object
+#' @param .X teebee object
 #' @param .i numeric, logical, character or formula to subset rows, i a formula
 #'   the lhs must evaluate to numeric and the rhs specifies the variables to
 #'   slice along.
@@ -20,7 +20,7 @@
 #' @export
 #'
 #' @examples
-`[.tb` <- function(.x, .i, .j, ...,
+`[.tb` <- function(.X, .i, .j, ...,
                    .by = NULL, .along = NULL,
                    .rm = FALSE, drop = FALSE,
                    .unchop = FALSE){
@@ -32,9 +32,13 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## setup mask
   pf <- parent.frame()
+  sc <- as.list(sys.call())
+  # if call is tb[], return tb
+  if(length(sc) == 3 && identical(sc[[3]], substitute())) return(.X)
+
   mask <- new.env(parent = pf)
-  mask[[".x"]] <- .x
-  mask[[".data"]] <- .x
+  mask[[".X"]] <- .X
+  mask[[".data"]] <- .X
   mask[["?"]] <- question_mark
   mask[[":"]] <- colon
 
@@ -47,14 +51,14 @@
   ## subset, and deal with := being used in i j as if it was =
   # so as if it was not fed to i or j
 
-  # if only one arg is fed besides .x and drop and that this arg is unnamed,
+  # if only one arg is fed besides .X and drop and that this arg is unnamed,
   # feed to .j
 
 
   ## detect necessity of list indexing
   bracket_arg_is_unique <- (nargs() - !missing(drop)) == 2
   if(bracket_arg_is_unique){
-    bracket_arg <- sys.call()[3]
+    bracket_arg <- sc[3]
     use_list_indexing_lgl <- !is_specified(bracket_arg)
   } else {
     use_list_indexing_lgl <- FALSE
@@ -65,56 +69,66 @@
     ## list indexing
     .j <- expand_expr(substitute(.i), pf)
     .i <- substitute()
-    col_subset_by_ref(.j, mask, .by)
-  } else {
-    ## reorganize call if labelled args are fed to .i or .j
-    dots0 <- list()
-    unspecified_dots <- dots[!vapply(split(dots,seq_along(dots)), is_specified, logical(1))]
+    col_subset_by_ref(.j, mask, .by = NULL)
+    return(mask$.data)
+  }
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ## slice or filter
+  ## reorganize call if labelled args are fed to .i or .j
+
+
+  dots0 <- list()
+  # if(any(tb_names(sc, env = pf) %in% c(".i", ".j")))
+  #   stop("`.i` and `.j` should not be named")
+
+
+  if(is_specified(sc[3])){
+    # if 1st bracket arg is specified, .i and .j can only be missing and we sort out the call
+    other_args <- sc[-(1:3)]
+    .i <- substitute()
+    .j <- substitute()
+    if(any (!vapply(split(other_args, seq_along(other_args)), is_specified, logical(1))))
+      stop(".i must be given first, left blank, or omitted, but cannot be given after another specified argument")
+
+    # if .i and/or .j are labelled, we must take their content and add it to the dots
+    if(is_labelled(sc[[3]])) {
+      dots0[[1]] <- expand_expr(sc[[3]], pf)
+    }
+    if(length(sc) > 3 && is_labelled(sc[[4]])) {
+      dots0 <- c(dots0, expand_expr(sc[[4]], pf))
+    }
+  } else {
+    # if 1st bracket arg is NOT specified, it's a proper .i, either missing or not
     if(missing(.i)) {
-      .i <- substitute()
+      .i <- substitute(.i)
     } else {
       .i <-expand_expr(substitute(.i), pf)
-      if(is_labelled(.i)) {
-        dots0 <- .i
-        if(length(unspecified_dots)) {
-          .i <- unspecified_dots[[1]]
-          .i <- splice_expr(.i, mask)
-          row_subset_by_ref(.i, mask)
-          unspecified_dots[[1]] <- NULL
-        } else {
-          .i <- substitute()
-        }
-      } else {
-        .i <- splice_expr(.i, mask)
-        row_subset_by_ref(.i, mask)
-      }
+      .i <- splice_expr(.i, mask)
+      row_subset_by_ref(.i, mask)
     }
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ## select or transmute
-    if(missing(.j))  .j <- substitute() else {
-      .j <-expand_expr(substitute(.j), pf)
 
-      if(is_labelled(.j)) {
-        dots0 <- c(dots0,.j)
-        if(length(unspecified_dots)) {
-          .j <- unspecified_dots[[1]]
-          .j <- splice_expr(.j, mask)
-          col_subset_by_ref(.j, mask, .by)
-        } else {
-          .j <- substitute()
-        }
+    # if 2nd bracket arg is specified, .j can only be missing and we sort out the call
+    if(length(sc) >3 && is_specified(sc[4])){
+      .j <- substitute()
+      other_args <- sc[-(1:4)]
+      if(any (!vapply(split(other_args,seq_along(other_args)), is_specified, logical(1))))
+        stop(".j must be given second, left blank, or omitted, but cannot be given after another specified argument")
+      if(is_labelled(sc[[4]])) {
+        dots0[[1]] <- expand_expr(sc[[4]], pf)
+      }
+    } else {
+      # if 2nd bracket arg is NOT specified, it's a proper .j, either missing or not
+      if(missing(.j)) {
+        .j <- substitute(.j)
       } else {
+        .j <-expand_expr(substitute(.j), pf)
         .j <- splice_expr(.j, mask)
         col_subset_by_ref(.j, mask, .by)
       }
-
     }
-    dots <- c(dots0, dots)
   }
+
+  dots <- c(dots0, dots)
 
   ## splice dots
   dots <- lapply(dots, function(x) {
@@ -125,7 +139,6 @@
     x
   })
   dots <- unlist(dots, recursive = FALSE)
-  dots <- lapply(dots, reparse_dbl_tilde)
 
   if(!missing(.by)){
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -160,6 +173,8 @@
 
         lhs <- expr[[2]]
         expr <- expr[[3]]
+        lhs <- reparse_dbl_tilde(lhs)
+        expr <- reparse_dbl_tilde(expr)
 
         if(is_curly_expr(lhs)){
           #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,6 +197,9 @@
           nm <- as.character(lhs)
         } else {
           nm <- eval(lhs, envir = .data, enclos = mask)
+          if(is.logical(nm)) {
+            nm <- names(.data)[nm]
+          }
           if(inherits(nm, "tb_selection")) {
             nm <- tb_select_by_ref(nm, mask)
           }
@@ -198,6 +216,8 @@
           mask$.data[to_remove] <- NULL
           next
         }
+      } else {
+        expr <- reparse_dbl_tilde(expr)
       }
 
       #~~~~~~~~~~

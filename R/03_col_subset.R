@@ -22,13 +22,13 @@ col_subset_by_ref <- function(.j, mask, .by){
   }
   ## return union of .by and .j columns
   .j <- unique(c(.by, .j))
-  mask$.data <- `[.data.frame`(.data, ,.j, drop = FALSE)
+  mask$.data <- subset_j(.data, .j)
   invisible()
 }
 
 
 #
-# simplify_j <- function(.x, .j, .by, env = parent.frame()){
+# simplify_j <- function(.X, .j, .by, env = parent.frame()){
 #   if(is.call(.j)){
 #     ## detect if j is of form var1:var2
 #     j_is_col_sequence <-
@@ -37,18 +37,18 @@ col_subset_by_ref <- function(.j, mask, .by){
 #       is.symbol(.j[[3]])
 #     if(j_is_col_sequence){
 #       ## replace .j call by a numeric sequence
-#       nms <- names(.x)
+#       nms <- names(.X)
 #       .j1 <- match(as.character(.j[[2]]), nms)
 #       .j2 <- match(as.character(.j[[3]]), nms)
 #       .j <- .j1:.j2
 #     } else {
 #       ## evaluate .j call in the context of df and mask
-#       .j <- eval(.j, envir=c(as.list(.x), list(.x = .x, `?` = question_mark)), enclos= env)
+#       .j <- eval(.j, envir=c(as.list(.X), list(.X = .X, `?` = question_mark)), enclos= env)
 #       if(inherits(.j, "tb_selection")) return(.j)
 #     }
 #   } else {
 #     ## evaluate .j symbol in the context of df and mask
-#     .j <- eval(.j, envir=c(as.list(.x), list(.x = .x, `?` = question_mark)), enclos= env)
+#     .j <- eval(.j, envir=c(as.list(.X), list(.X = .X, `?` = question_mark)), enclos= env)
 #   }
 #
 #   if(is.logical(.j)) {
@@ -57,7 +57,7 @@ col_subset_by_ref <- function(.j, mask, .by){
 #   }
 #   if(!is.character(.j)) {
 #     ## convert indices to character col names
-#     .j <- names(.x)[.j]
+#     .j <- names(.X)[.j]
 #   }
 #   ## return union of .by and .j columns
 #   .j <- unique(c(.by, .j))

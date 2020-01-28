@@ -60,17 +60,14 @@
   if(bracket_arg_is_unique){
     bracket_arg <- sc[3]
     use_list_indexing_lgl <- !is_specified(bracket_arg)
-  } else {
-    use_list_indexing_lgl <- FALSE
-  }
-
-  if(use_list_indexing_lgl) {
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ## list indexing
-    .j <- expand_expr(substitute(.i), pf)
-    .i <- substitute()
-    col_subset_by_ref(.j, mask, .by = NULL)
-    return(mask$.data)
+    if(use_list_indexing_lgl) {
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      ## list indexing
+      .j <- expand_expr(substitute(.i), pf)
+      .i <- substitute()
+      col_subset_by_ref(.j, mask, .by = NULL)
+      return(mask$.data)
+    }
   }
 
   ## reorganize call if labelled args are fed to .i or .j

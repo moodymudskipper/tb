@@ -4,7 +4,7 @@
 
 aggregate_tb <- function(dots, mask, .by){
   .data <- mask$.data
-  .data_df <- as.data.frame(.data) # we could use data.table to set class by ref
+  .data_df <- .data #as.data.frame(.data) # we could use data.table to set class by ref
   data_nms <- names(.data)
 
   if(length(.by)){
@@ -16,12 +16,13 @@ aggregate_tb <- function(dots, mask, .by){
 
     ## split data along by columns
     sub_dfs <- split(.data_df, by_cols_as_factors,drop=TRUE)
+    sub_dfs <- lapply(sub_dfs, as_tb)
     ## initiate with unique values of .by columns
     # we ll append it with aggregations
     output <- unique(.data_df[.by])
   } else {
     sub_dfs <- list(.data_df)
-    output <- structure(list(), row.names = 1L, class = "data.frame")
+    output <- structure(list(), row.names = 1L, class = c("tb", "data.frame"))
   }
 
   rownames(output) <- NULL
@@ -38,7 +39,10 @@ aggregate_tb <- function(dots, mask, .by){
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       ## Handle labelled arguments
       nm <- dots[[i]][[2]] # unevaluated_name
+
+      nm <- reparse_dbl_tilde(nm)
       expr <- dots[[i]][[3]]
+      expr <- reparse_dbl_tilde(expr)
       if (is_curly_expr(nm)) {
         "Renaming expressions, using syntax `{var} := expr`, are not supported when aggregating with `.by`"
       }
@@ -52,14 +56,13 @@ aggregate_tb <- function(dots, mask, .by){
         if (is.numeric(nm) || is.logical(nm)){
           nm <- data_nms[nm]
         } else if (inherits(nm, "tb_selection")) {
-          # TODO
-          nm <- make_it_a_character()
+          nm <- tb_select_by_ref(nm, mask)
         } else if (!is.character(nm)){
           stop("the lhs `", deparse2(arg), "` evaluates to an unsupported type")
         }
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         ## Handle character lhs of length > 1
-        if (length(nm > 1)) {
+        if (length(nm) > 1) {
           if("." %in% all.vars(expr)){
             output[nm] <- lapply(nm, tb_standard_summarize, expr, sub_dfs, mask)
           } else {
@@ -76,6 +79,7 @@ aggregate_tb <- function(dots, mask, .by){
       stop("All arguments should be named (using `=`), or labelled (using `:=`)")
       }
       expr <- dots[[i]]
+      expr <- reparse_dbl_tilde(expr)
     }
 
 
@@ -140,7 +144,8 @@ tb_spread <- function(nm, arg, sub_dfs, mask, .by){
     # spread_output
     spread_output <- unique(subset_j(sub_df,.by))
     ## split data along spread columns
-    sub_sub_dfs <- split(as.data.frame(sub_df), spread_cols_as_factors,drop = TRUE)
+    #sub_sub_dfs <- split(as.data.frame(sub_df), spread_cols_as_factors,drop = TRUE)
+    sub_sub_dfs <- split(sub_df, spread_cols_as_factors,drop = TRUE)
     names(sub_sub_dfs) <- glue::glue_data(unique(sub_df[col_nms]), nm)
 
     cols <- lapply(sub_sub_dfs, transformation_fun0, expr)
@@ -194,7 +199,7 @@ tb_standard_summarize2 <- function(arg, sub_dfs, mask){
 }
 
 
-# tb_standard_summarize <- function(data, nm, arg, sub_dfs, .x, env, .by){
+# tb_standard_summarize <- function(data, nm, arg, sub_dfs, .X, env, .by){
 #   ## define transformation_fun which applies the transformation given by
 #   ## a dot expression through the mask
 #   transformation_fun <- function(sub_df, expr) {
@@ -203,7 +208,7 @@ tb_standard_summarize2 <- function(arg, sub_dfs, mask){
 #       .data = data,
 #       . = sub_df[[nm]],
 #       .nm = nm,
-#       .x = .x,
+#       .X = .X,
 #       `?` = question_mark))
 #     eval(expr, envir = mask, enclos = env)
 #   }
@@ -217,7 +222,7 @@ tb_standard_summarize2 <- function(arg, sub_dfs, mask){
 
 
 
-# tb_spread <- function(data, nm, arg, sub_dfs, .x, env, .by){
+# tb_spread <- function(data, nm, arg, sub_dfs, .X, env, .by){
 #   matches <- gregexpr("\\{.*?\\}", nm, perl = T)
 #   exprs <- regmatches(nm, matches)[[1]]  # curly braces content substrings
 #   exprs <- gsub("[{}]","", exprs)
@@ -227,7 +232,7 @@ tb_standard_summarize2 <- function(arg, sub_dfs, mask){
 #     mask <- c(as.list(sub_sub_df), list(
 #       .sd = sub_sub_df,
 #       .data = data,
-#       .x = .x,
+#       .X = .X,
 #       `?` = question_mark))
 #     eval(expr, envir = mask, enclos = env)
 #   }

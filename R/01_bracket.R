@@ -61,7 +61,6 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## fetch dot expressions
   dots <- eval(substitute(alist(...)))
-
   dots <- subset_select_by_ref_and_return_dots(dots, .by, sc, pf, mask)
 
   if(!missing(.by)){
@@ -70,24 +69,13 @@
     .by <- eval(substitute(.by), envir = mask$.data, enclos = mask)
     if(inherits(.by, "tb_selection")) {
       #data  <- tb_transmute(data, .j, env = caller_env)
-      .by <- tb_select_by_ref(.by, mask)
+      .by <- modify_by_ref_and_return_selected_names(.by, mask)
     }
     mask$.data <- aggregate_tb(dots, mask, .by)
 
   } else {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # no aggregation (.by and .along are NULL)
-
-    # we remove support of unnamed dots
-    # if(is_unique_and_unnamed(dots)){
-    #   return(eval(dots[[1]], envir = build_mask(x), enclos = env))
-    # }
-
-    # we need mutate_named_by_ref and mutate_labelled_by_ref
-    # mutate_labelled_by_ref will itself call mutate_named_by_ref when the lhs is a symbol
-    # This way we don't need the glue name part on the labelled side
-    # and we won't use next as we can just return invisible in the subfunctions instead
-
     for(i in seq_along(dots)){
       ## setup loop
       expr <- dots[[i]]

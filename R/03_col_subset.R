@@ -7,7 +7,7 @@ col_subset_by_ref <- function(.j, mask, .by){
     .j <- eval(.j, envir=.data, enclos= mask)
     if(inherits(.j, "tb_selection")) {
       #data  <- tb_transmute(data, .j, env = caller_env)
-      .j <- tb_select_by_ref(.j, mask)
+      .j <- modify_by_ref_and_return_selected_names(.j, mask)
     } #return(.j)
   } else {
     ## evaluate .j symbol in the context of df and mask

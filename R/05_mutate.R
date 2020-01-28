@@ -35,7 +35,7 @@ mutate_labelled_by_ref <- function(expr, mask){
       nm <- names(mask$.data)[nm]
     }
     if(inherits(nm, "tb_selection")) {
-      nm <- tb_select_by_ref(nm, mask)
+      nm <- modify_by_ref_and_return_selected_names(nm, mask)
     }
   }
 

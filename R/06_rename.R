@@ -16,7 +16,7 @@ rename_by_ref <- function(lhs, expr, mask){
   } else {
     old_nms <- eval(lhs, envir = .data, enclos = mask)
     if(inherits(old_nms, "tb_selection")) {
-      old_nms <- tb_select_by_ref(old_nms, mask)
+      old_nms <- modify_by_ref_and_return_selected_names(old_nms, mask)
     }
     if(is.logical(old_nms) || is.numeric(old_nms)) {
       old_nms <- nms[old_nms]

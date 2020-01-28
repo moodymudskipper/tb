@@ -56,7 +56,7 @@ aggregate_tb <- function(dots, mask, .by){
         if (is.numeric(nm) || is.logical(nm)){
           nm <- data_nms[nm]
         } else if (inherits(nm, "tb_selection")) {
-          nm <- tb_select_by_ref(nm, mask)
+          nm <- modify_by_ref_and_return_selected_names(nm, mask)
         } else if (!is.character(nm)){
           stop("the lhs `", deparse2(arg), "` evaluates to an unsupported type")
         }

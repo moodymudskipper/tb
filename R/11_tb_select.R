@@ -1,5 +1,5 @@
 # does transmuting by ref but returns column names!
-tb_select_by_ref <- function(.j, mask){
+modify_by_ref_and_return_selected_names <- function(.j, mask){
   .data <- mask$.data
   data_nms <- names(.data)
   arg_nms <- tb_names(.j)

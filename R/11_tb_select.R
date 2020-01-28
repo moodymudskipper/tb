@@ -103,52 +103,6 @@ s <- function(...){
   args
 }
 
-# sequence notation was not implemented yet!
-
-# tb_select <- function(.X, .j, env){
-#   arg_nms <- tb_names(.j)
-#   s_nms <- character(0)
-#   for(i in seq_along(.j)){
-#     arg <- .j[[i]]
-#     if(arg_nms[[i]] != ""){
-#       ## append name of argument to s_nms
-#       s_nms <- append(s_nms, arg_nms[[i]])
-#     } else {
-#       if(is.symbol(arg)) {
-#         ## append deparsed symbol to s_nms
-#         s_nms <- append(s_nms, deparse(arg))
-#       } else if(is.call(arg) &&
-#                 identical(arg[[1]], quote(`:`)) &&
-#                 is.symbol(arg[[2]]) &&
-#                 is.symbol(arg[[3]])){
-#         ## replace .j call by a numeric sequence
-#         nms <- names(.X)
-#         .j1 <- match(as.character(arg[[2]]), nms)
-#         .j2 <- match(as.character(arg[[3]]), nms)
-#         .j <- s_nms <- nms[.j1:.j2]
-#       } else {
-#         ## evaluate arg in the context of df and mask
-#         arg <- eval(arg, envir=c(as.list(.X), list(.X = .X, `?` = question_mark)), enclos= env)
-#
-#         if (inherits(arg, "formula")){
-#           one_sided_formula_lgl <- length(arg) == 2
-#           if(one_sided_formula_lgl) {
-#             ## use regex on col names
-#             arg_lgl <- grepl(eval(arg[[2]], env), names(.X))
-#             arg <- names(.X)[arg_lgl]
-#
-#           } else {
-#             stop("unnamed 2 sided formulas are not supported in `s()`")
-#           }
-#         }
-#         ## append to s_nms
-#         s_nms <- append(s_nms, arg)
-#       }
-#     }
-#   }
-#   unique(s_nms)
-# }
-
 tb_names <- function(args, env){
   nms <- allNames(args)
   unnamed <- nms == ""
@@ -174,4 +128,3 @@ tb_transmute <- function(.X, .j, env){
   # implement mutate first
 }
 
-# we should deal with case where names are parenthesized

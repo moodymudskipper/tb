@@ -29,14 +29,14 @@
          "The argument was only kept for compatibility")
   }
 
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ## setup mask
   pf <- parent.frame()
   sc <- as.list(sys.call())
   # if call is tb[], return tb
   no_arg_between_brackets <- length(sc) == 3 && identical(sc[[3]], substitute())
   if(no_arg_between_brackets) return(.X)
 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ## setup mask
   mask <- new.env(parent = pf)
   mask[[".X"]] <- .X
   mask[[".data"]] <- .X
@@ -63,32 +63,20 @@
   dots <- eval(substitute(alist(...)))
   dots <- subset_select_by_ref_and_return_dots(dots, .by, sc, pf, mask)
 
-  if(!missing(.by)){
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # aggregate
-    .by <- eval(substitute(.by), envir = mask$.data, enclos = mask)
-    if(inherits(.by, "tb_selection")) {
-      #data  <- tb_transmute(data, .j, env = caller_env)
-      .by <- modify_by_ref_and_return_selected_names(.by, mask)
-    }
-    mask$.data <- aggregate_tb(dots, mask, .by)
-
-  } else {
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # no aggregation (.by and .along are NULL)
-    for(i in seq_along(dots)){
-      ## setup loop
-      expr <- dots[[i]]
-      # TO DO: we should be able to have parenthesized glue name too!!!
-      if(is_labelled(expr)) {
-        mutate_labelled_by_ref(expr, mask)
-      } else {
-        mutate_named_by_ref(expr, nm = names(dots)[i], mask)
-      }
-    }
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # no aggregation (.by and .along are NULL)
+  if(missing(.by)){
+    mutate_dots_by_ref(dots, mask)
+    return(mask$.data)
   }
 
-  mask$.data
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # aggregate
+  .by <- eval(substitute(.by), envir = mask$.data, enclos = mask)
+  if(inherits(.by, "tb_selection")) {
+    .by <- modify_by_ref_and_return_selected_names(.by, mask)
+  }
+  summarize_dots(dots, mask, .by)
 }
 
 

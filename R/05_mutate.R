@@ -1,3 +1,16 @@
+mutate_dots_by_ref <- function(dots, mask){
+  for(i in seq_along(dots)){
+    ## setup loop
+    expr <- dots[[i]]
+    if(is_labelled(expr)) {
+      mutate_labelled_by_ref(expr, mask)
+    } else {
+      mutate_named_by_ref(expr, nm = names(dots)[i], mask)
+    }
+  }
+  invisible()
+}
+
 mutate_labelled_by_ref <- function(expr, mask){
   to_remove <- NULL
   on.exit(mask$.data[to_remove] <- NULL)
@@ -52,7 +65,6 @@ mutate_labelled_by_ref <- function(expr, mask){
 
   invisible()
 }
-
 
 mutate_named_by_ref <- function(expr, nm, mask){
   to_remove <- NULL

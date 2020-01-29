@@ -34,10 +34,10 @@ test_that("i in the context of the table works", {
     mtcars_tb[mpg < 30,])
 })
 
-test_that("i using .X works", {
+test_that("i using x works", {
   expect_equivalent(
     mtcars[c("Toyota Corolla", "Toyota Corona"),],
-    mtcars_tb[startsWith(rownames(.X),"Toyota"),])
+    mtcars_tb[startsWith(rownames(x),"Toyota"),])
 })
 
 test_that("i using regex works", {

@@ -123,8 +123,8 @@ tb_args <- function(args, env){
   list(names = nms, exprs = exprs)
 }
 
-tb_transmute <- function(.X, j, env){
-  .X
+tb_transmute <- function(x, j, env){
+  x
   # implement mutate first
 }
 

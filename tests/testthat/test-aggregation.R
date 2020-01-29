@@ -36,12 +36,13 @@ test_that("standard aggregation works with :=",{
   expect_equivalent(
     agg_iris,
     iris_tb[.(x) := mean(.), by = "Species"])
+  y <- "Sepal.Width"
   expect_equivalent(
     agg_iris,
-    iris_tb[(x) := mean(.), by = "Species"])
+    iris_tb[(y) := mean(.), by = "Species"])
   expect_equivalent(
     agg_iris,
-    iris_tb[c(x) := mean(.), by = "Species"])
+    iris_tb[c(y) := mean(.), by = "Species"])
   expect_equivalent(
     agg_iris,
     iris_tb[2 := mean(.), by = "Species"])

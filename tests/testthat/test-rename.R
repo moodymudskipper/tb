@@ -4,7 +4,7 @@ test_that("renaming works", {
   mtcars_tb <- as_tb(mtcars)
   res <- mtcars_tb
   names(res)[2] <- "CYL"
-  x <- "cyl"
+  col <- "cyl"
   #expect_identical(res,
   # rename using symbol
   expect_identical(res,mtcars_tb[{cyl} := "CYL"])
@@ -13,7 +13,7 @@ test_that("renaming works", {
   # rename using expr
   expect_identical(res,mtcars_tb[{paste0("c","yl")} := "CYL"])
   # rename using extra variable
-  expect_identical(res,mtcars_tb[{x} := "CYL"])
+  expect_identical(res,mtcars_tb[{col} := "CYL"])
 
   # same using dot form
   # rename using symbol
@@ -23,7 +23,7 @@ test_that("renaming works", {
   # rename using expr
   expect_identical(res,mtcars_tb[{paste0("c","yl")} := toupper(.)])
   # rename using extra variable
-  expect_identical(res,mtcars_tb[{x} := toupper(.)])
+  expect_identical(res,mtcars_tb[{col} := toupper(.)])
 })
 
 

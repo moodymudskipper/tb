@@ -84,7 +84,7 @@ test_that(":= with a string lhs fed using .()",{
 # # also we might want to select columns in i, so maybe using `?` on rownames is not
 # # such a good idea
 # iris %tb>%
-#   .[order(.X[?is.numeric,])]
+#   .[order(x[?is.numeric,])]
 #
 #
 # dplyr::starwars %tb>% .[gender == "hermaphrodite",]

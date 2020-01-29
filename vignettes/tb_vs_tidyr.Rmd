@@ -198,7 +198,7 @@ df <- tibble(x1 = 1:3, x2 = 4:6, x3 = 7:9, y = 1:3)
 tb1 <- tb(x1 = 1:3, x2 = 4:6, x3 = 7:9, y = 1:3)
 df
 df %>% pack(x = starts_with("x"))
-tb1[x = list(.X[?"^x"])][s(-?"x\\d")]
+tb1[x = list(x[?"^x"])][s(-?"x\\d")]
 df %>% pack(x = c(x1, x2, x3), y = y)
 ```
 

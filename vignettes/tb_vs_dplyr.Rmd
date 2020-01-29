@@ -44,9 +44,9 @@ starwars <- as_tb(starwars) # from dplyr
 |   dplyr                  |            tb           |   data.table         | base                        |
 |--------------------------|-------------------------| ---------------------|-----------------------------|
 | `slice(mtcars, 1)`       | `mtcars[1,]`            |  `mtcars[1]`         | `head(mtcars, 1)`           |
-| `slice(mtcars, n())`     | `mtcars[nrow(.X),]`     |  `mtcars[.N]`        | `tail(mtcars, 1)`           |
-| `slice(mtcars, 5:n())`   | `mtcars[5:nrow(.X),]`   |  `mtcars[5:.N]`      | `tail(mtcars, -4)`          |
-| `slice(mtcars, -5:-n())` | `mtcars[5:nrow(.X),]`   |  `mtcars[-5:-.N]`    | `mtcars[-5:-nrow(mtcars),]` |
+| `slice(mtcars, n())`     | `mtcars[nrow(x),]`     |  `mtcars[.N]`        | `tail(mtcars, 1)`           |
+| `slice(mtcars, 5:n())`   | `mtcars[5:nrow(x),]`   |  `mtcars[5:.N]`      | `tail(mtcars, -4)`          |
+| `slice(mtcars, -5:-n())` | `mtcars[5:nrow(x),]`   |  `mtcars[-5:-.N]`    | `mtcars[-5:-nrow(mtcars),]` |
 | `slice(mtcars, 1:4)`     | `mtcars[1:4,]`          |  `mtcars[1:4]`       | `mtcars[1:4,]`              |
 | `mtcars %>%` <br>&ensp; `group_by(, cyl) %>%` <br>&ensp; `slice(1:2)` | `mtcars[1:2 ~ cyl,]` | `mtcars_dt[, .SD[1:2],`<br>&ensp;`by = cyl]` | `do.call(rbind,lapply(` <br>&ensp; `split(mtcars, mtcars$cyl),`<br>&ensp;`` `[`, 1:2,))`` |
 
@@ -54,7 +54,7 @@ starwars <- as_tb(starwars) # from dplyr
 
 A few notable differences :
 
-* We can access the original data with `.X` so we don't need the convenient but "magical" `.N`, we just type `nrow(.X)`.
+* We can access the original data with `x` so we don't need the convenient but "magical" `.N`, we just type `nrow(x)`.
 * We need the extra comma compared to *data.table*, because tb supports list indexing like regular data frames and tibble, so that an unique unnamed argument will be used for column selection.
 * We use the `by` argument only for true aggregation, leaving as many rows as distinct combinations of grouping columns. We do however support
 manipulations "along" other variables (we try to avoid the word "by"), and this is done by using a 2 sided formula.
@@ -84,9 +84,9 @@ cond <- c(80, 150)
 
 |   dplyr                                                                     |            tb                                            |
 |-----------------------------------------------------------------------------|----------------------------------------------------------|
-| `starwars %>%` <br>&ensp; `filter(` <br>&emsp; `.data[[vars[[1]]]] > cond[[1]],` <br>&emsp; `.data[[vars[[2]]]] > cond[[2]])`                                      | `starwars[.X[[vars[[1]]]] > cond[[1]] &` <br>&ensp; `.X[[vars[[2]]]] > cond[[2]],]`                          |
+| `starwars %>%` <br>&ensp; `filter(` <br>&emsp; `.data[[vars[[1]]]] > cond[[1]],` <br>&emsp; `.data[[vars[[2]]]] > cond[[2]])`                                      | `starwars[x[[vars[[1]]]] > cond[[1]] &` <br>&ensp; `x[[vars[[2]]]] > cond[[2]],]`                          |
 
-Accessing `.X` is a lot like accessing `.data` with *dplyr*, except that `.X` is really
+Accessing `x` is a lot like accessing `.data` with *dplyr*, except that `x` is really
 the table object accessed in the context of the data frame, while `.data` is a special
 object that only looks like a data frame when accessed this way.
 
@@ -108,8 +108,8 @@ with the use that *data.table* makes of it!).
 
 |   dplyr                                 |            tb                |
 |-----------------------------------------|------------------------------|
-| `filter_all(mtcars, all_vars(. > 150))` | `mtcars[rowAlls(.X > 150),]`  |
-| `filter_all(mtcars, any_vars(. > 150))` | `mtcars[rowAnys(.X > 150),]`  |
+| `filter_all(mtcars, all_vars(. > 150))` | `mtcars[rowAlls(x > 150),]`  |
+| `filter_all(mtcars, any_vars(. > 150))` | `mtcars[rowAnys(x > 150),]`  |
 
 `rowAll()` and `rowAny()` come from the package `MatrixStats`
 
@@ -120,7 +120,7 @@ the condition directly to the subset and building the filter from the matrix.
 
 |   dplyr                                 |             tb                                    |
 |-----------------------------------------|---------------------------------------------------|
-| `filter_at(mtcars, vars(starts_with("d")), any_vars((. %% 2) == 0))` | `mtcars[rowAny(.X[?"^d"] %% 2 == 0),]`  
+| `filter_at(mtcars, vars(starts_with("d")), any_vars((. %% 2) == 0))` | `mtcars[rowAny(x[?"^d"] %% 2 == 0),]`  
 
 In this example we keep rows where at least one variable starting with "d" has an even value.
 
@@ -128,14 +128,14 @@ In this example we keep rows where at least one variable starting with "d" has a
 a string, and the regular expression it contains is applied on the names, returning a logical vector.
 We will see it also when looking at `select()`.
 
-This vector is used to subset `.X`, and then like on the example above we compute a boolean matrix
+This vector is used to subset `x`, and then like on the example above we compute a boolean matrix
 and `rowAny` helps us finish the job.
 
 ## `filter_if()`
 
 |   dplyr                                 |             tb                                    |
 |-----------------------------------------|---------------------------------------------------|
-| `filter_if(mtcars, ~ all(floor(.) == .), all_vars(. != 0))` | `mtcars[rowAll(.X[?all(floor(.) == .)] != 0),]`  
+| `filter_if(mtcars, ~ all(floor(.) == .), all_vars(. != 0))` | `mtcars[rowAll(x[?all(floor(.) == .)] != 0),]`  
 
 In this example, among "integerish" columns we filter rows with only non zero values.
 
@@ -156,15 +156,15 @@ use `dplyr::desc()` which is exactly the same.
 
 |   dplyr                                 |             tb                                    |
 |-------------------------------|-----------------------------|
-| `arrange_all(mtcars)`  | `mtcars[order(+.X),]`        |
-| `arrange_all(mtcars, desc)`  | `mtcars[order(+-.X),]` |
+| `arrange_all(mtcars)`  | `mtcars[order(+x),]`        |
+| `arrange_all(mtcars, desc)`  | `mtcars[order(+-x),]` |
 
-Unary `+` means that we splice the input, so `order(+.X)`is equivalent to 
-`order(.X[[1]], .X[[2]], <etc>)`.
+Unary `+` means that we splice the input, so `order(+x)`is equivalent to 
+`order(x[[1]], x[[2]], <etc>)`.
 
 It is similar to `!!!` in the tidyverse except that :
 
-* The input is spliced once evaluated in the context of the `tb` (so here `.X` is understood!), 
+* The input is spliced once evaluated in the context of the `tb` (so here `x` is understood!), 
 while in the *tidyverse* the input is evaluated in the calling environment.
 * It is usable in any function.
 * It doesn't necessarily have to be used in the `...` argument.
@@ -173,7 +173,7 @@ while in the *tidyverse* the input is evaluated in the calling environment.
 
 |   dplyr                        |            tb                      |
 |--------------------------------|------------------------------------|
-| `arrange_if(iris, is.numeric)` | `iris[order(+.X[?is.numeric]),]`   |
+| `arrange_if(iris, is.numeric)` | `iris[order(+x[?is.numeric]),]`   |
 
 ## `arrange_at()`
 
@@ -184,7 +184,7 @@ vars <- c("cyl", "disp")
 
 |   dplyr                        |            tb                      |
 |--------------------------------|------------------------------------|
-| `arrange_at(iris, mtcars)` | `mtcars[order(+.X[vars]),]`   |
+| `arrange_at(iris, mtcars)` | `mtcars[order(+x[vars]),]`   |
 
 
 ## `select()`
@@ -331,7 +331,7 @@ mass <- 100
 
 |   dplyr                               |            tb           |
 |---------------------------------------|-------------------------|
-| `starwars %>% mutate(`<br>&ensp;`prod = .data[[vars[[1]]]] * .data[[vars[[2]]]])` | `starwars[prod = prod(+.X[vars])]` |
+| `starwars %>% mutate(`<br>&ensp;`prod = .data[[vars[[1]]]] * .data[[vars[[2]]]])` | `starwars[prod = prod(+x[vars])]` |
 | `mutate(starwars, mass = mass / !!mass)` | `starwars[mass = mass / .(mass)]` |
 
 ## `mutate_all()`
@@ -403,7 +403,7 @@ iris %>% mutate_if(is.numeric, list(scale = scale2))
 
 |   dplyr                               |            tb           |
 |---------------------------------------|-------------------------|
-| `mtcars %>%`<br>&ensp;`summarise(mean = mean(disp), n = n())` | `mtcars[mean = mean(disp), n = nrow(.X), by = NA]` |
+| `mtcars %>%`<br>&ensp;`summarise(mean = mean(disp), n = n())` | `mtcars[mean = mean(disp), n = nrow(x), by = NA]` |
 | `mtcars %>%`<br>&ensp;`group_by(cyl) %>%`<br>&ensp;`summarise(mean = mean(disp), n = n())` | `mtcars[mean = mean(disp), n = nrow(.subset), by = "cyl"]` |
 | `mtcars %>%`<br>&ensp;`group_by(cyl, vs) %>%`<br>&ensp;`summarise(cyl_n = n())` | `mtcars[cyl_n = nrow(.subset), by = c("cyl", "vs")]` |
 | `mtcars %>%`<br>&ensp;`group_by(cyl) %>%`<br>&ensp;`summarise(disp = mean(disp),`<br>&ensp;`sd = sd(disp), double_disp = disp * 2)` | `mtcars[disp = mean(disp), sd = sd(disp),`<br>&ensp;`double_disp = disp * 2, by = "cyl"]` |
@@ -493,7 +493,7 @@ mtcars %>% count(cyl)
 mtcars[n = nrow(.subset), by = "cyl"]
 
 mtcars %>% add_tally()
-mtcars[n = nrow(.X)]
+mtcars[n = nrow(x)]
 
 mtcars %>% add_count(cyl)
 mtcars[n = nrow(.subset) ~ cyl]

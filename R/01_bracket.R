@@ -3,7 +3,7 @@
 #'
 #' `...` can contain `foo = expr` arguments such as those
 #'
-#' @param .X teebee object
+#' @param x teebee object
 #' @param i numeric, logical, character or formula to subset rows, i a formula
 #'   the lhs must evaluate to numeric and the rhs specifies the variables to
 #'   slice along.
@@ -20,7 +20,7 @@
 #' @export
 #'
 #' @examples
-`[.tb` <- function(.X, i, j, ...,
+`[.tb` <- function(x, i, j, ...,
                    by, .along,
                    drop = FALSE){
   sc <- sys.call()
@@ -28,7 +28,7 @@
   #~~~~~~~~~~~~~~~~~~~----------------------
   ## deal with empty brackets right away
   empty_brackets <- length(sc) == 3 && identical(sc[[3]], substitute())
-  if(empty_brackets) return(.X)
+  if(empty_brackets) return(x)
 
   if(drop) {
     stop("`drop` should always be FALSE in `[.tb`. ",
@@ -39,8 +39,8 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## setup mask
   mask <- new.env(parent = pf)
-  mask[[".X"]] <- .X
-  mask[[".data"]] <- .X
+  mask[["x"]] <- x
+  mask[[".data"]] <- x
   mask[["?"]] <- question_mark
   mask[[":"]] <- colon
 

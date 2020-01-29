@@ -36,7 +36,7 @@ test_that("we can mutate along", {
 test_that("we can mutate multiple values", {
   # by providing a the input as a list of same length
   res <- transform(mtcars, cyl2 = cyl, mpg2 = mpg)
-  expect_identical(mtcars %tb>% .[c("cyl2", "mpg2") := x[c("cyl","mpg")]],res)
+  expect_identical(mtcars %tb>% .[c("cyl2", "mpg2") := .data[c("cyl","mpg")]],res)
   # by using a selection on the lhs, doesn't work now if columns don't exist
   # expect_identical(mtcars %tb>% .[s(cyl2, mpg2) := x[c("cyl","mpg")]],res)
   # by providing an expression containing the dot

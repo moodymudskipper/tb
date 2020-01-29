@@ -39,7 +39,7 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## setup mask
   mask <- new.env(parent = pf)
-  mask[["x"]] <- x
+  #mask[["x"]] <- x
   mask[[".data"]] <- x
   mask[["?"]] <- question_mark
   mask[[":"]] <- colon

@@ -70,16 +70,6 @@ test_that(":= with a string lhs fed using .()",{
       .by = "eye_color"]
 )})
 
-test_that(":= with a variable evaluated using {} works",{
-  x <- "min_height_{gender}"
-  expect_equivalent(
-    sw_spread,
-    sw_tb[gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
-      `max_mass_{gender}` := max(mass, na.rm = TRUE),
-      {x} := min(height, na.rm = TRUE),
-      .by = "eye_color"]
-)})
-
 #
 #
 # # multi spread with several glue variables works!

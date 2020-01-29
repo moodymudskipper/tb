@@ -45,6 +45,8 @@ test_that("we can mutate multiple values", {
   # by using `?` for "if"
   res <- transform(iris, Species = toupper(Species))
   expect_identical(iris %tb>% .[(?is.factor) := toupper(.)],res)
+  # the precdence is fixed so we don't need these parentheses
+  expect_identical(iris %tb>% .[?is.factor := toupper(.)],res)
   res <- transform(iris, Sepal.Length = sqrt(Sepal.Length), Sepal.Width = sqrt(Sepal.Width))
   expect_identical(iris %tb>% .[(?"^Sepal") := sqrt(.)],res)
 })

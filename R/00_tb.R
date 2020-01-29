@@ -91,24 +91,24 @@ backup_class <- function(x){
 }
 
 # it will do for now!
-print.tb <- function(x, n = 10) {
-  cat("# A tb:", nrow(x), "x", ncol(x), "\n")
-  nr <- nrow(x)
-  n_min <- min(nr, n)
-  converter <- function(x) {
-    sapply(x, function(elt){
-    if(is.data.frame(elt)) {
-      sprintf("[%s x %s]", nrow(elt), ncol(elt))
-    } else elt
-    })
-  }
-
-  x_edited <- x
-  is_list_lgl <- sapply(x, is.list)
-  x_edited[is_list_lgl] <- lapply(x[is_list_lgl], converter)
-  #x_edited <- x[is.list(~~.data) := converter(~~.)]
-
-  print.data.frame(x_edited[seq_len(n_min),])
-  if(nr > n_min) cat("# ... with ", nr-n_min, " more rows")
-  invisible(x)
-}
+# print.tb <- function(x, n = 10) {
+#   cat("# A tb:", nrow(x), "x", ncol(x), "\n")
+#   nr <- nrow(x)
+#   n_min <- min(nr, n)
+#   converter <- function(x) {
+#     sapply(x, function(elt){
+#     if(is.data.frame(elt)) {
+#       sprintf("[%s x %s]", nrow(elt), ncol(elt))
+#     } else elt
+#     })
+#   }
+#
+#   x_edited <- x
+#   is_list_lgl <- sapply(x, is.list)
+#   x_edited[is_list_lgl] <- lapply(x[is_list_lgl], converter)
+#   #x_edited <- x[is.list(~~.data) := converter(~~.)]
+#
+#   print.data.frame(x_edited[seq_len(n_min),])
+#   if(nr > n_min) cat("# ... with ", nr-n_min, " more rows")
+#   invisible(x)
+# }

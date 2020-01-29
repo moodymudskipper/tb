@@ -62,6 +62,7 @@ subset_j <- function(x, i){
 }
 
 expand_expr <- function(expr, where) {
+  if(identical(expr, substitute())) return(substitute())
   # taken right from bquote's code
   unquote <- function(e) if (is.pairlist(e))
     as.pairlist(lapply(e, unquote))
@@ -70,7 +71,13 @@ expand_expr <- function(expr, where) {
   else if (e[[1L]] == as.name("."))
     eval(e[[2L]], where)
   else as.call(lapply(e, unquote))
-  unquote(expr)
+  expr <- unquote(expr)
+  # change precedence if `?` is used
+  if(is_qm_labelled(expr)) {
+    expr <- expr[[2]]
+    expr[[2]] <- as.call(c(quote(`?`), expr[[2]]))
+  }
+  expr
 }
 
 reparse_dbl_tilde <- function(expr){
@@ -132,6 +139,12 @@ has_splice_prefix <- function(x){
 is_specified <- function(arg) {
   (!is.null(names(arg)) && names(arg) != "") || is_labelled(arg[[1]])
 }
+
+is_qm_labelled<- function(arg) {
+  is.call(arg) &&  identical(arg[[1]], quote(`?`)) &&
+    is.call(arg[[2]]) && identical(arg[[c(2,1)]], quote(`:=`))
+}
+
 
 # a deparse that doesnt choke on `{`
 deparse2 <- function(x){

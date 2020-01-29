@@ -34,13 +34,6 @@ test_that("i in the context of the table works", {
     mtcars_tb[mpg < 30,])
 })
 
-
-test_that("i using regex works", {
-  expect_equivalent(
-    mtcars[c("Toyota Corolla", "Toyota Corona"),],
-    mtcars_tb[~"^Toyota",])
-})
-
 df <- data.frame(x=11:16, y = c(rep("a",3), rep("b",3)))
 tb <- as_tb(df)
 test_that("i along works", {

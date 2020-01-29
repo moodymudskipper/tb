@@ -119,13 +119,13 @@ bench::mark(
   check=FALSE,
   aggregate(mpg ~ cyl, mtcars, mean),
   mtcars_dt[, .(mpg = mean(mpg)), by = cyl],
-  mtcars_tb[,mpg = mean(mpg), .by = "cyl"],
+  mtcars_tb[,mpg = mean(mpg), by = "cyl"],
   mtcars_tbl_df %>% group_by(cyl) %>% summarize(mpg= mean(mpg)))
 
 bench::mark(
   check=FALSE,
   aggregate(mpg ~ cyl, mtcars2, mean),
   mtcars_dt2[, .(mpg = mean(mpg)), by = cyl],
-  mtcars_tb2[,mpg = mean(mpg), .by = "cyl"],
+  mtcars_tb2[,mpg = mean(mpg), by = "cyl"],
   mtcars_tbl_df2 %>% group_by(cyl) %>% summarize(mpg= mean(mpg)))
 ```

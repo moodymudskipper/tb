@@ -18,7 +18,7 @@ test_that(" = with backticked names works",{
       gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
       `max_mass_{gender}` = max(mass, na.rm = TRUE),
       `min_height_{gender}` = min(height, na.rm = TRUE),
-      .by = "eye_color"]
+      by = "eye_color"]
   )})
 
 test_that("= with string litteral names works", {
@@ -27,7 +27,7 @@ test_that("= with string litteral names works", {
     sw_tb[gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
     'max_mass_{gender}' = max(mass, na.rm = TRUE),
     'min_height_{gender}' = min(height, na.rm = TRUE),
-    .by = "eye_color"]
+    by = "eye_color"]
 )})
 
 test_that(":= with backticked names works", {
@@ -37,7 +37,7 @@ test_that(":= with backticked names works", {
   gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
   `max_mass_{gender}` := max(mass, na.rm = TRUE),
   `min_height_{gender}` := min(height, na.rm = TRUE),
-  .by = "eye_color"]
+  by = "eye_color"]
 )})
 
 
@@ -47,7 +47,7 @@ test_that(":= with string litteral names works", {
     sw_tb[gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
     'max_mass_{gender}' := max(mass, na.rm = TRUE),
     'min_height_{gender}' := min(height, na.rm = TRUE),
-    .by = "eye_color"]
+    by = "eye_color"]
 )})
 
 test_that(":= with a quoted variable fed using .() works",{
@@ -57,7 +57,7 @@ test_that(":= with a quoted variable fed using .() works",{
     sw_tb[gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
       `max_mass_{gender}` := max(mass, na.rm = TRUE),
       .(x) := min(height, na.rm = TRUE),
-      .by = "eye_color"]
+      by = "eye_color"]
 )})
 
 test_that(":= with a string lhs fed using .()",{
@@ -67,7 +67,7 @@ test_that(":= with a string lhs fed using .()",{
     sw_tb[gender %in% c("male", "female") & eye_color %in% c("yellow", "blue", "brown"),
       `max_mass_{gender}` := max(mass, na.rm = TRUE),
       .(x) := min(height, na.rm = TRUE),
-      .by = "eye_color"]
+      by = "eye_color"]
 )})
 
 #
@@ -79,7 +79,7 @@ test_that(":= with a string lhs fed using .()",{
 #       eye_color %in% c("yellow", "blue", "brown") &
 #       species %in% c("Human", "Wookiee"),
 #     'max_mass_{gender}_{species}' = max(mass, na.rm = TRUE),
-#     .by = "eye_color"]
+#     by = "eye_color"]
 #
 # # also we might want to select columns in i, so maybe using `?` on rownames is not
 # # such a good idea

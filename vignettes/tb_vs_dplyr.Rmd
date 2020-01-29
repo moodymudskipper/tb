@@ -473,13 +473,13 @@ starwars %>%
 # The _at() variants directly support strings:
 starwars %>%
   summarise_at(c("height", "mass"), mean, na.rm = TRUE)
-starwars[c("height", "mass") := mean(.), .by = NA]
+starwars[c("height", "mass") := mean(.), by = NA]
 
 # You can also supply selection helpers to _at() functions but you have
 # to quote them with vars():
 starwars %>%
   summarise_at(vars(height:mass), mean, na.rm = TRUE)
-starwars[height:mass := mean(.), .by = NA]
+starwars[height:mass := mean(.), by = NA]
 ```
 
 ## `count()`, `tally()`, `àdd_count()`, `add_tally()`
@@ -490,7 +490,7 @@ mtcars %>% group_by(cyl) %>% tally()
 tb(n=nrow(mtcars)) 
 
 mtcars %>% count(cyl)
-mtcars[n = nrow(.subset), .by = "cyl"]
+mtcars[n = nrow(.subset), by = "cyl"]
 
 mtcars %>% add_tally()
 mtcars[n = nrow(.X)]
@@ -503,20 +503,20 @@ species <-
  starwars %>%
  count(species, homeworld, sort = TRUE)
 species
-starwars[n = nrow(.subset), .by = c("species", "homeworld")]
+starwars[n = nrow(.subset), by = c("species", "homeworld")]
 
 species %>% count(species, sort = TRUE)
-starwars[n = length(unique(homeworld)), .by = "species"]
+starwars[n = length(unique(homeworld)), by = "species"]
 
 species <-
  starwars %>%
  count(species, homeworld, sort = TRUE, name = "n_species_by_homeworld")
-starwars[n_species_by_homeworld = nrow(.subset), .by = c("species", "homeworld")]
+starwars[n_species_by_homeworld = nrow(.subset), by = c("species", "homeworld")]
 
 species
 species %>%
  count(species, sort = TRUE, name = "n_species")
-starwars[n_species = length(unique(homeworld)), .by = "species"]
+starwars[n_species = length(unique(homeworld)), by = "species"]
 # add_count() is useful for groupwise filtering
 # e.g.: show details for species that have a single member
 starwars %>%
@@ -542,7 +542,7 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 
 <!-- ```{r} -->
 <!-- # doesn't seem to work right -->
-<!-- sw[n = nrow(.), .by  = "eye_color"] -->
+<!-- sw[n = nrow(.), by  = "eye_color"] -->
 <!-- ``` -->
 
 
@@ -581,7 +581,7 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 <!-- * 4) Just use `with()` and we don't need `transmute()` : `with(sw, tb(height_cm = height/100)) -->
 
 <!-- An argument to keep the `.rm` is that it could be `NA` by default so when we use -->
-<!-- `.by` it acts as if it is `TRUE`, and when mutating acts as if it is `FALSE`. -->
+<!-- `by` it acts as if it is `TRUE`, and when mutating acts as if it is `FALSE`. -->
 
 <!-- setting to `FALSE` when summarizing would `nest()` (or rather `chop()`) all remaining columns. -->
 
@@ -597,7 +597,7 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 <!-- ## `summarize()` -->
 
 <!-- ```{r} -->
-<!-- sw[mean_height = mean(height, na.rm = TRUE), .by = "gender"] -->
+<!-- sw[mean_height = mean(height, na.rm = TRUE), by = "gender"] -->
 <!-- ``` -->
 
 <!-- ## `nest()` -->
@@ -609,7 +609,7 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 <!-- # chopping each column -->
 <!-- sw[by=Species, .rm = FALSE] -->
 <!-- # nesting relevant columns -->
-<!-- sw[Petal = data.frame(Petal.Width, Petal.Length), .by="Species"] -->
+<!-- sw[Petal = data.frame(Petal.Width, Petal.Length), by="Species"] -->
 <!-- ``` -->
 
 <!-- ## `pack()` -->
@@ -634,7 +634,7 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 
 <!-- ```{r, eval = FALSE} -->
 <!-- # not supported yet -->
-<!-- sw[`mean_height_{eye_color}` = mean(height), .by = "gender"] -->
+<!-- sw[`mean_height_{eye_color}` = mean(height), by = "gender"] -->
 <!-- ``` -->
 
 <!-- ## `gather()` -->
@@ -700,13 +700,13 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 <!-- tb1[,, tb2[,cols_tb2]] -->
 <!-- ``` -->
 
-<!-- in case of different `.by` cols, renaming is not more verbose than `.by` specifications : -->
+<!-- in case of different `by` cols, renaming is not more verbose than `by` specifications : -->
 
 <!-- ```{r, eval = FALSE} -->
 <!-- tb1[,, tb2[(new) := old]] -->
 <!-- ``` -->
 
-<!-- It's annoying though to have to specify the `.by` column if we just want to grab -->
+<!-- It's annoying though to have to specify the `by` column if we just want to grab -->
 <!-- a couple columns from `tb2`. -->
 
 <!-- So we could define some special helper to work only inside `tb`s. -->

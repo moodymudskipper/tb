@@ -10,8 +10,8 @@
 #' @param j numeric, logical or character to subset columns
 #' @param ... Name-value pairs of expression to be evaluated in the context of
 #'   the teebee, see details
-#' @param .by variables to aggregate by
-#' @param .rm if TRUE columns not created by the call or part of .by cols will be
+#' @param by variables to aggregate by
+#' @param .rm if TRUE columns not created by the call or part of by cols will be
 #'   removed
 #' @param drop
 #' @param .unchop
@@ -21,7 +21,7 @@
 #'
 #' @examples
 `[.tb` <- function(.X, i, j, ...,
-                   .by, .along,
+                   by, .along,
                    drop = FALSE){
   sc <- sys.call()
 
@@ -46,7 +46,7 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c(".by",".along", "drop")][c(-1,-2)]
+  args <- as.list(sc)[!allNames(sc) %in% c("by",".along", "drop")][c(-1,-2)]
   args      <- lapply(args, expand_expr, pf)
   args      <- lapply(args, splice_expr, mask)
   length_args <- length(args)
@@ -70,7 +70,7 @@
     if(length_args==1) {
       ## use list indexing, i s used for j
       j <- expand_expr(substitute(i), pf)
-      col_subset_by_ref(j, mask, .by = NULL)
+      col_subset_by_ref(j, mask, by = NULL)
       return(mask$.data)
     }
     if(!specified_lgl[2]) {
@@ -86,22 +86,22 @@
     dots <- args
   }
   row_subset_by_ref(i, mask)
-  col_subset_by_ref(j, mask, .by)
+  col_subset_by_ref(j, mask, by)
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ## mutate if `.by` is missing
-  if(missing(.by)){
+  ## mutate if `by` is missing
+  if(missing(by)){
     mutate_dots_by_ref(dots, mask)
     return(mask$.data)
   }
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # aggregate otherwise
-  .by <- eval(substitute(.by), envir = mask$.data, enclos = mask)
-  if(inherits(.by, "tb_selection")) {
-    .by <- modify_by_ref_and_return_selected_names(.by, mask)
+  by <- eval(substitute(by), envir = mask$.data, enclos = mask)
+  if(inherits(by, "tb_selection")) {
+    by <- modify_by_ref_and_return_selected_names(by, mask)
   }
-  summarize_dots(dots, mask, .by)
+  summarize_dots(dots, mask, by)
 }
 
 

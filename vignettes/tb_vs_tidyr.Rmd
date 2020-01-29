@@ -51,15 +51,15 @@ nest_legacy
 df <- as_tb(data.frame(x = c(1, 1, 2), y = 3:1))
 
 nest_legacy(df, y)
-df[data = tb(y), .by="x"] # or df[data = .subset["y"], .by="x"]
+df[data = tb(y), by="x"] # or df[data = .subset["y"], by="x"]
 
 # nesting -------------------------------------------------------------------
 nest_legacy(iris, -Species)
-iris[data = .subset[s(-Species)], .by = "Species"]
+iris[data = .subset[s(-Species)], by = "Species"]
 
 
 nest_legacy(chickwts, weight)
-chickwts[data = tb(weight), .by = "feed"]
+chickwts[data = tb(weight), by = "feed"]
 
 ```
 
@@ -71,32 +71,32 @@ tb1 <- tb(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
 # Note that we get one row of output for each unique combination of
 # non-nested variables
 df %>% nest(data = c(y, z))
-tb1[data = tb(y, z), .by = "x"]
+tb1[data = tb(y, z), by = "x"]
 
 # use tidyselect syntax and helpers, just like in dplyr::select()
 df %>% nest(data = one_of("y", "z"))
-tb1[data = .subset[c("x", "y")], .by = "x"]
+tb1[data = .subset[c("x", "y")], by = "x"]
 
 iris %>% nest(data = -Species)
-iris_tb[data = .subset[s(-Species)], .by = "Species"]
+iris_tb[data = .subset[s(-Species)], by = "Species"]
 
 nest_vars <- names(iris)[1:4]
 iris %>% nest(data = one_of(nest_vars))
-iris_tb[data = .subset[nest_vars], .by = s(-nest_vars)]
+iris_tb[data = .subset[nest_vars], by = s(-nest_vars)]
 
 iris %>%
   nest(petal = starts_with("Petal"), sepal = starts_with("Sepal"))
-iris[petal = .subset[?"^Petal"], sepal = .subset[?"^Sepal"], .by = "Species"]
+iris[petal = .subset[?"^Petal"], sepal = .subset[?"^Sepal"], by = "Species"]
 
 iris %>%
   nest(width = contains("Width"), length = contains("Length"))
-iris[width = .subset[?"Width"], length = .subset[?"Length"], .by = "Species"]
+iris[width = .subset[?"Width"], length = .subset[?"Length"], by = "Species"]
 # Nesting a grouped data frame nests all variables apart from the group vars
 library(dplyr)
 fish_encounters %>%
   group_by(fish) %>%
   nest()
-fish_encounters[data = .subset[?".*"], .by = "fish"]
+fish_encounters[data = .subset[?".*"], by = "fish"]
 ```
 
 
@@ -160,8 +160,8 @@ df %>% unnest(a) %>% unnest(b)
 df  <- tibble(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
 tb1 <- tb(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
 df %>% chop(c(y, z))
-tb1[y = list(y), z = list(z), .by = "x"]
-tb1[s(y, z) := list(.), .by = "x"]
+tb1[y = list(y), z = list(z), by = "x"]
+tb1[s(y, z) := list(.), by = "x"]
 ```
 
 ## unchop

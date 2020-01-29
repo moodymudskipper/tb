@@ -30,7 +30,7 @@ splt <- function(x, into, sep = "[^[:alnum:]]+",
     elt
   })
   res <- as.data.frame(do.call("rbind", x2))
-  if(convert) res <- type.convert(res, as.is = TRUE)
+  if(convert) res <- type.convert(res, asis = TRUE)
   res
 }
 
@@ -179,33 +179,33 @@ transform2 <- function(nm, expr, mask){
   res
 }
 
-reorganize_call_i <- function(mc, .i, .j){
+reorganize_call_i <- function(mc, i, j){
   mc <- as.list(mc)
-  mc_i <- mc[[".i"]]
-  names(mc)[names(mc)==".i"] <- ""
-  if(!missing(.j)) {
-    if(is_labelled(.j)){
-      # if we have := in both .i and .j
-      # mc_j <- mc[[".j"]]
-      names(mc)[names(mc)==".j"] <- ""
+  mc_i <- mc[["i"]]
+  names(mc)[names(mc)=="i"] <- ""
+  if(!missing(j)) {
+    if(is_labelled(j)){
+      # if we have := in both i and j
+      # mc_j <- mc[["j"]]
+      names(mc)[names(mc)=="j"] <- ""
       mc <- append(mc,c(substitute(),substitute()),2)
     } else {
-      # if we have := in .i and a legit j
-      mc[[".i"]] <- NULL
+      # if we have := in i and a legit j
+      mc[["i"]] <- NULL
       mc <- append(mc,substitute(),2)
       mc <- append(mc,mc_i,4)
     }
   } else {
-    # if we have := in .i and missing .j
+    # if we have := in i and missing j
     mc <- append(mc,c(substitute(),substitute()),2)
   }
   mc <- as.call(mc)
 }
 
-reorganize_call_j <- function(mc, .i, .j){
+reorganize_call_j <- function(mc, i, j){
   mc <- as.list(mc)
-  names(mc)[names(mc)==".j"] <- ""
-  if(missing(.i)){
+  names(mc)[names(mc)=="j"] <- ""
+  if(missing(i)){
     mc <- append(mc, c(substitute(), substitute()), 2)
   } else {
     mc <- append(mc, substitute(), 3)

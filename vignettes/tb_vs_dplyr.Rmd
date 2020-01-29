@@ -574,8 +574,8 @@ starwars[n = nrow(.subset) ~ species][n==1,]
 <!-- ``` -->
 
 <!-- Not completely sure about this one, alternatives would be : -->
-<!-- * 1) A special value for `.j` : `sw[1:4, NULL, height_cm = height/100]` -->
-<!-- * 2) Use `.j` as in *data.table* and consider that it is still "subsetting"  -->
+<!-- * 1) A special value for `j` : `sw[1:4, NULL, height_cm = height/100]` -->
+<!-- * 2) Use `j` as in *data.table* and consider that it is still "subsetting"  -->
 <!--   (as `transmute()` is really `SELECT` in SQL): `sw[1:4, slct(height_cm = height/100)]` -->
 <!-- * 3) Use `[[` as a `with()` to compute unnamed arguments, so we'd do `sw[[,tb(height_cm = height/100)]]` -->
 <!-- * 4) Just use `with()` and we don't need `transmute()` : `with(sw, tb(height_cm = height/100)) -->

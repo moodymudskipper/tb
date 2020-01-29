@@ -4,10 +4,10 @@
 #' `...` can contain `foo = expr` arguments such as those
 #'
 #' @param .X teebee object
-#' @param .i numeric, logical, character or formula to subset rows, i a formula
+#' @param i numeric, logical, character or formula to subset rows, i a formula
 #'   the lhs must evaluate to numeric and the rhs specifies the variables to
 #'   slice along.
-#' @param .j numeric, logical or character to subset columns
+#' @param j numeric, logical or character to subset columns
 #' @param ... Name-value pairs of expression to be evaluated in the context of
 #'   the teebee, see details
 #' @param .by variables to aggregate by
@@ -20,7 +20,7 @@
 #' @export
 #'
 #' @examples
-`[.tb` <- function(.X, .i, .j, ...,
+`[.tb` <- function(.X, i, j, ...,
                    .by, .along,
                    drop = FALSE){
   sc <- sys.call()
@@ -45,7 +45,7 @@
   mask[[":"]] <- colon
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ## get .i, .j. and dot args from the call and preprocess
+  ## get i, j. and dot args from the call and preprocess
   args <- as.list(sc)[!allNames(sc) %in% c(".by",".along", "drop")][c(-1,-2)]
   args      <- lapply(args, expand_expr, pf)
   args      <- lapply(args, splice_expr, mask)
@@ -60,33 +60,33 @@
     any(specified_lgl[1:2]) &&
     any(which(!specified_lgl) > which.max(specified_lgl))
   if(first_unspecified_args_not_at_front) {
-    stop(".i and .j should be given first")
+    stop("i and j should be given first")
   }
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ## assign arguments to .i, .j, or dots
+  ## assign arguments to i, j, or dots
   if(!specified_lgl[1]) {
-    .i <- args[[1]]
+    i <- args[[1]]
     if(length_args==1) {
-      ## use list indexing, .i s used for .j
-      .j <- expand_expr(substitute(.i), pf)
-      col_subset_by_ref(.j, mask, .by = NULL)
+      ## use list indexing, i s used for j
+      j <- expand_expr(substitute(i), pf)
+      col_subset_by_ref(j, mask, .by = NULL)
       return(mask$.data)
     }
     if(!specified_lgl[2]) {
-      .j <- args[[2]]
+      j <- args[[2]]
       dots <- args[-(1:2)]
     } else {
-      .j <- substitute()
+      j <- substitute()
       dots <- args[-1]
     }
   } else {
-    .i <- substitute()
-    .j <- substitute()
+    i <- substitute()
+    j <- substitute()
     dots <- args
   }
-  row_subset_by_ref(.i, mask)
-  col_subset_by_ref(.j, mask, .by)
+  row_subset_by_ref(i, mask)
+  col_subset_by_ref(j, mask, .by)
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## mutate if `.by` is missing

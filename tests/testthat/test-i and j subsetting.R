@@ -1,8 +1,8 @@
 # consistency with `[.data.frame`
 # https://github.com/moodymudskipper/tb/issues/2
 
-# .i and .j must be able to take numeric, logical, or character input and return the same object (except for class)
-# In the syntax tb[foo], foo is fed to .j and drop is FALSE
+# i and j must be able to take numeric, logical, or character input and return the same object (except for class)
+# In the syntax tb[foo], foo is fed to j and drop is FALSE
 
 sw <- as.data.frame(dplyr::starwars)
 sw_tb <- as_tb(dplyr::starwars)
@@ -10,7 +10,7 @@ mtcars_tb <- as_tb(mtcars)
 iris_tb <- as_tb(iris)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# basic .i subsetting
+# basic i subsetting
 
 test_that("numeric i works", {
   expect_equivalent(mtcars[4:5,], mtcars_tb[4:5,])
@@ -26,7 +26,7 @@ test_that("character i works", {
 })
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# .i advanced subsetting
+# i advanced subsetting
 
 test_that("i in the context of the table works", {
   expect_equivalent(
@@ -65,7 +65,7 @@ sw_tb[mass > mean(mass, na.rm = TRUE) ~ gender,]
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# basic .j subsetting
+# basic j subsetting
 
 test_that("numeric j works", {
   expect_equivalent(mtcars[,4:5], mtcars_tb[,4:5])
@@ -81,7 +81,7 @@ test_that("character j works", {
 })
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# when only one unnamed argument in brackets, or one and j, should be fed to .j
+# when only one unnamed argument in brackets, or one and j, should be fed to j
 
 test_that("numeric j works", {
   expect_equivalent(mtcars[4:5], mtcars_tb[4:5])
@@ -92,7 +92,7 @@ test_that("numeric j works", {
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# .j advanced subsetting
+# j advanced subsetting
 
 test_that("selecting column sequences works", {
   expect_equivalent(iris[,2:4], iris_tb[,Sepal.Width:Petal.Width])

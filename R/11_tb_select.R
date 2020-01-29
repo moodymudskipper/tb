@@ -1,11 +1,11 @@
 # does transmuting by ref but returns column names!
-modify_by_ref_and_return_selected_names <- function(.j, mask){
+modify_by_ref_and_return_selected_names <- function(j, mask){
   .data <- mask$.data
   data_nms <- names(.data)
-  arg_nms <- tb_names(.j)
+  arg_nms <- tb_names(j)
   s_nms <- character(0)
-  for(i in seq_along(.j)){
-    arg <- .j[[i]]
+  for(i in seq_along(j)){
+    arg <- j[[i]]
 
     ## deal with named arguments
     arg_is_named <- arg_nms[[i]] != ""
@@ -93,7 +93,7 @@ modify_by_ref_and_return_selected_names <- function(.j, mask){
 #' select and transform columns
 #'
 #' This reproduces the functionality of SQL select, `dplyr::transmute()` or
-#' *data.table*'s use of `.()` in `.j`.
+#' *data.table*'s use of `.()` in `j`.
 #'
 #' @param ... expressions
 #' @export
@@ -123,7 +123,7 @@ tb_args <- function(args, env){
   list(names = nms, exprs = exprs)
 }
 
-tb_transmute <- function(.X, .j, env){
+tb_transmute <- function(.X, j, env){
   .X
   # implement mutate first
 }

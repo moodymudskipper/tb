@@ -25,11 +25,11 @@ https://github.com/moodymudskipper/tb/issues/1
 
 ## general syntax
 
-The general syntax is `tb1[.i, .j, ..., .by]` (more args will come)
+The general syntax is `tb1[i, j, ..., .by]` (more args will come)
 
-* `.i` is for row subsetting only, similar to *data.table* but feeding 
+* `i` is for row subsetting only, similar to *data.table* but feeding 
 a data.frame to it doesn't do a **right join** but a semi join.
-* `.j` is for column selection in the SQL sense, so column subsetting with 
+* `j` is for column selection in the SQL sense, so column subsetting with 
 optional column creation (the latter not implemented yet).
 * `...` is for mutating or summarizing expressions (and will be used for 
 **left joins** too in the future)
@@ -66,7 +66,7 @@ mtcars %tb>% .[disp = mean(disp), drat = mean(drat), .by = "cyl"]
 mtcars_tb[disp = mean(.), drat = mean(.), .by = "cyl"]
 ```
 
-* `?` can be used anywhere (`.i`, `.j`, `...` or `.by`) to select with a 
+* `?` can be used anywhere (`i`, `j`, `...` or `.by`) to select with a 
 predicate or a regular expression.
 
 ```{r}
@@ -74,7 +74,7 @@ mtcars_tb[disp = mean(.), drat = mean(.), .by = ?is.factor]
 ```
 
 * `:=` can be used as a replacement for `=` anywhere (if used as a first argument
-it is not fed to `.i` just like it wouldn't with `=`) but it supports more features,
+it is not fed to `i` just like it wouldn't with `=`) but it supports more features,
 such as this usage of `.` :
 
 ```{r}
@@ -130,7 +130,7 @@ mtcars_tb[1:2,s(-?is.numeric,drat, qsec:am)]
 ```
 
 * We can access in any argument the source table with `.X`, the sliced/selected
-data after application of `.i` and `.j` with `.data`, and the subset of data
+data after application of `i` and `j` with `.data`, and the subset of data
 with `.subset`, can be useful for advanced filtering :
 
 ```{r}

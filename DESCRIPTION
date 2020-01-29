@@ -17,3 +17,4 @@ Suggests:
 URL: https://github.com/moodymudskipper/tb
 BugReports: https://github.com/moodymudskipper/tb/issues
 VignetteBuilder: knitr
+RoxygenNote: 7.0.2

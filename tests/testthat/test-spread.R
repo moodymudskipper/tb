@@ -81,7 +81,7 @@ test_that(":= with a string lhs fed using .()",{
 #     'max_mass_{gender}_{species}' = max(mass, na.rm = TRUE),
 #     .by = "eye_color"]
 #
-# # also we might want to select columns in .i, so maybe using `?` on rownames is not
+# # also we might want to select columns in i, so maybe using `?` on rownames is not
 # # such a good idea
 # iris %tb>%
 #   .[order(.X[?is.numeric,])]

@@ -68,3 +68,10 @@ test_that("splicing works", {
     mtcars %tb>% .[,1:2, +mtcars[,3:4]],
     mtcars[1:4])
 })
+
+
+test_that("transmuting works", {
+  expect_identical(
+    cars[1:2,] %tb>% .[s(speed, dist, a=dist*speed, b=3)],
+    transform(cars[1:2,], speed = speed, a=dist*speed, b=3))
+})

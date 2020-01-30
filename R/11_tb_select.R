@@ -6,7 +6,6 @@ modify_by_ref_and_return_selected_names <- function(j, mask){
   s_nms <- character(0)
   for(i in seq_along(j)){
     arg <- j[[i]]
-
     ## deal with named arguments
     arg_is_named <- arg_nms[[i]] != ""
     if(arg_is_named){
@@ -14,6 +13,7 @@ modify_by_ref_and_return_selected_names <- function(j, mask){
       s_nms <- append(s_nms, arg_nms[[i]])
       ## operate transmute call
       # TODO
+      mutate_named_by_ref(arg, arg_nms[[i]], mask)
       next
     }
 

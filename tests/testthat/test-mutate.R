@@ -50,3 +50,12 @@ test_that("we can mutate multiple values", {
   res <- transform(iris, Sepal.Length = sqrt(Sepal.Length), Sepal.Width = sqrt(Sepal.Width))
   expect_identical(iris %tb>% .[(?"^Sepal") := sqrt(.)],res)
 })
+
+
+
+test_that("we can mutate lists and vectors", {
+  expect_identical(
+    structure(list(a=1:2, b=list(3,4), c = 5:6, d = head(cars,2)), class= "data.frame", row.names=1:2),
+    data.frame(a=1:2) %tb>% .[b = list(3,4), c = 5:6, d = head(cars,2)]
+  )
+})

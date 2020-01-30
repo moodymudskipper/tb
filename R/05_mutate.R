@@ -76,7 +76,7 @@ mutate_named_by_ref <- function(expr, nm, mask){
   } else {
     ## regular column name
     # we should handle "along" notation in there too
-    mask$.data[nm] <- transform2(nm, expr, mask)
+    mask$.data[nm] <- list(transform2(nm, expr, mask))
     mask$.data[to_remove] <- NULL
   }
   invisible()

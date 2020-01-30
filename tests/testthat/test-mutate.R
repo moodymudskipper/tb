@@ -59,3 +59,12 @@ test_that("we can mutate lists and vectors", {
     data.frame(a=1:2) %tb>% .[b = list(3,4), c = 5:6, d = head(cars,2)]
   )
 })
+
+test_that("splicing works", {
+  expect_identical(
+    mtcars %tb>% .[,1:4, test = pmax(+list(disp, hp))],
+    transform(mtcars[1:4], test = pmax(mtcars$disp, mtcars$hp)))
+  expect_identical(
+    mtcars %tb>% .[,1:2, +mtcars[,3:4]],
+    mtcars[1:4])
+})

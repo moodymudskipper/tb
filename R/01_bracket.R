@@ -47,8 +47,15 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
   args <- as.list(sc)[!allNames(sc) %in% c("by",".along", "drop")][c(-1,-2)]
-  args      <- lapply(args, expand_expr, pf)
-  args      <- lapply(args, splice_expr, mask)
+  args <- lapply(args, expand_expr, pf)
+  args <- lapply(args, function(x) {
+    if(is.numeric(x) || is.character(x)) return(x)
+    if(has_splice_prefix(x)){
+      return(eval.parent(splice_expr(x[[2]], mask)))
+    }
+    list(splice_expr(x, mask))
+  })
+  args <- unlist(args, recursive = FALSE)
   length_args <- length(args)
 
   specified_lgl <- allNames(args) != "" | vapply(args, is_labelled, logical(1))

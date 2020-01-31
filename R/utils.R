@@ -1,3 +1,16 @@
+fill_by_ref <- function(fill, mask){
+  if(!is.null(fill)){
+    if(is.list(fill)){
+      mask$.data[names(fill)] <- Map(function(x,y)
+        replace(x, is.na(x), y), mask$.data[names(fill)] , fill)
+    } else {
+      mask$.data[is.na(mask$.data)] <- fill
+    }
+  }
+  invisible()
+}
+
+
 splt <- function(x, into, sep = "[^[:alnum:]]+",
                  convert = FALSE, extra = "warn", fill = "warn"){
   x <- as.character(x)

@@ -21,8 +21,7 @@
 #'
 #' @examples
 `[.tb` <- function(x, i, j, ...,
-                   by,
-                   drop = FALSE){
+                   by, drop = FALSE, fill = NULL){
   sc <- sys.call()
 
   #~~~~~~~~~~~~~~~~~~~----------------------
@@ -46,7 +45,7 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop")][c(-1,-2)]
+  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill")][c(-1,-2)]
   args <- lapply(args, expand_expr, pf)
 
   if(has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1,2)]])) {
@@ -109,16 +108,22 @@
   ## mutate if `by` is missing
   if(missing(by)){
     mutate_dots_by_ref(dots, mask)
+    fill_by_ref(fill, mask)
     return(mask$.data)
   }
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # aggregate otherwise
   by <- eval(substitute(by), envir = mask$.data, enclos = mask)
+  if(isTRUE(is.na(by))) {
+    by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
+  }
   if(inherits(by, "tb_selection")) {
     by <- modify_by_ref_and_return_selected_names(by, mask)
   }
-  summarize_dots(dots, mask, by)
+  mask$.data <- summarize_dots(dots, mask, by)
+  fill_by_ref(fill, mask)
+  mask$.data
 }
 
 

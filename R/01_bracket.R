@@ -48,6 +48,15 @@
   ## get i, j. and dot args from the call and preprocess
   args <- as.list(sc)[!allNames(sc) %in% c("by",".along", "drop")][c(-1,-2)]
   args <- lapply(args, expand_expr, pf)
+
+  if(has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1,2)]])) {
+    if(length(args) == 1) stop(
+      "You cannot use `++` in a unique bracket argument as it is then fed to j ",
+      "(list indexing), use foo[++bar,] instead of foo[++bar]")
+    mask$.data <- rbind(mask$.data, eval.parent(args[[1]]))
+    args[[1]] <- substitute()
+  }
+
   args <- lapply(args, function(x) {
     if(is.numeric(x) || is.character(x)) return(x)
     if(has_splice_prefix(x)){
@@ -87,6 +96,7 @@
       j <- substitute()
       dots <- args[-1]
     }
+
   } else {
     i <- substitute()
     j <- substitute()

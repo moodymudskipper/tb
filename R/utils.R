@@ -136,6 +136,10 @@ has_splice_prefix <- function(x){
   is.call(x) && length(x) == 2 && identical(x[[1]], quote(`+`))
 }
 
+# has_dbl_plus_prefix <- function(x){
+#   has_splice_prefix(x) && has_splice_prefix(x[[2]])
+# }
+
 is_specified <- function(arg) {
   (!is.null(names(arg)) && names(arg) != "") || is_labelled(arg[[1]])
 }

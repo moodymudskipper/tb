@@ -4,10 +4,10 @@
 \alias{[.tb}
 \title{Modify a tb object}
 \usage{
-\method{[}{tb}(.X, i, j, ..., .by, .along, drop = FALSE)
+\method{[}{tb}(x, i, j, ..., by, drop = FALSE, fill = NULL)
 }
 \arguments{
-\item{.X}{teebee object}
+\item{x}{teebee object}
 
 \item{i}{numeric, logical, character or formula to subset rows, i a formula
 the lhs must evaluate to numeric and the rhs specifies the variables to
@@ -18,9 +18,9 @@ slice along.}
 \item{...}{Name-value pairs of expression to be evaluated in the context of
 the teebee, see details}
 
-\item{.by}{variables to aggregate by}
+\item{by}{variables to aggregate by}
 
-\item{.rm}{if TRUE columns not created by the call or part of .by cols will be
+\item{.rm}{if TRUE columns not created by the call or part of by cols will be
 removed}
 
 \item{.unchop}{}

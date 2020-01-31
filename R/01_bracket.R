@@ -21,7 +21,7 @@
 #'
 #' @examples
 `[.tb` <- function(x, i, j, ...,
-                   by, .along,
+                   by,
                    drop = FALSE){
   sc <- sys.call()
 
@@ -46,7 +46,7 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c("by",".along", "drop")][c(-1,-2)]
+  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop")][c(-1,-2)]
   args <- lapply(args, expand_expr, pf)
 
   if(has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1,2)]])) {

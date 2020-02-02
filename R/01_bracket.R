@@ -21,7 +21,7 @@
 #'
 #' @examples
 `[.tb` <- function(x, i, j, ...,
-                   by, drop = FALSE, fill = NULL){
+                   by, fill = NULL, drop = FALSE){
   sc <- sys.call()
 
   #~~~~~~~~~~~~~~~~~~~----------------------
@@ -40,8 +40,9 @@
   mask <- new.env(parent = pf)
   #mask[["x"]] <- x
   mask[[".data"]] <- x
-  mask[["?"]] <- question_mark
-  mask[[":"]] <- colon
+  mask[[".N"]] <- nrow(x)
+  mask[["?"]]  <- question_mark
+  mask[[":"]]  <- colon
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
@@ -102,6 +103,7 @@
     dots <- args
   }
   row_subset_by_ref(i, mask)
+  mask[[".N"]] <- nrow(mask$.data)
   col_subset_by_ref(j, mask, by)
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

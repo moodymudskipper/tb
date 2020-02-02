@@ -181,14 +181,16 @@ transform2 <- function(nm, expr, mask){
 
     transformation_fun <- function(sub_df, expr) {
       mask$.subset <- as_tb(sub_df)
-      mask$. <- sub_df[[nm]]
+      mask$.  <- sub_df[[nm]]
+      mask$.N <- nrow(sub_df)
       eval(expr, envir = sub_df, enclos = mask)
     }
 
     res <- rep(NA, nrow(.data))
     split(res, along_vars) <- lapply(sub_dfs, transformation_fun, expr)
-    mask$. <- NULL
+    mask$.       <- NULL
     mask$.subset <- NULL
+    mask$.N      <- NULL
   } else {
     # regular mutating
     #.data[[nm]] <- res

@@ -146,12 +146,16 @@ tb_standard_summarize <- function(nm, arg, sub_dfs, mask){
   transformation_fun <- function(sub_df, expr) {
     mask$.subset <- sub_df
     mask$. <- sub_df[[nm]]
+    mask$.N <- nrow(sub_df)
     eval(expr, envir = sub_df, enclos = mask)
   }
   ## compute this transformation for all subdfs
   res <- lapply(sub_dfs, transformation_fun, arg)
+  # might not be so useful to set to NULL as we'll overwrite anyway
+  # keep safe for now and in the end remove and see how tests hold
   mask$.subset <- NULL
   mask$. <-  NULL
+  mask$.N <- NULL
   ## simplify if all results are scalar
   if(all(sapply(res, is.atomic) & lengths(res) == 1))
     res <- unlist(res)

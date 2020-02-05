@@ -1,22 +1,22 @@
-col_subset_by_ref <- function(j, mask, by){
-  if(missing(j)) return(invisible())
-  if(missing(by)) by <- NULL
-  if(is.call(j)){
+col_subset_by_ref <- function(j, mask, by) {
+  if (missing(j)) return(invisible())
+  if (missing(by)) by <- NULL
+  if (is.call(j)) {
     ## evaluate j call in the context of df and mask
-    j <- eval(j, envir=mask$.data, enclos= mask)
-    if(inherits(j, "tb_selection")) {
+    j <- eval(j, envir = mask$.data, enclos = mask)
+    if (inherits(j, "tb_selection")) {
       j <- modify_by_ref_and_return_selected_names(j, mask)
     }
   } else {
     ## evaluate j symbol in the context of df and mask
-    j <- eval(j, envir=mask$.data, enclos= mask)
+    j <- eval(j, envir = mask$.data, enclos = mask)
   }
 
-  if(is.logical(j)) {
+  if (is.logical(j)) {
     ## turn NAs to FALSE so we keep only TRUE indices
     j[is.na(j)] <- FALSE
   }
-  if(!is.character(j)) {
+  if (!is.character(j)) {
     ## convert indices to character col names
     j <- names(mask$.data)[j]
   }

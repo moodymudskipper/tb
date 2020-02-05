@@ -21,15 +21,15 @@
 #'
 #' @examples
 `[.tb` <- function(x, i, j, ...,
-                   by, fill = NULL, drop = FALSE){
+                   by, fill = NULL, drop = FALSE) {
   sc <- sys.call()
 
   #~~~~~~~~~~~~~~~~~~~----------------------
   ## deal with empty brackets right away
   empty_brackets <- length(sc) == 3 && identical(sc[[3]], substitute())
-  if(empty_brackets) return(x)
+  if (empty_brackets) return(x)
 
-  if(drop) {
+  if (drop) {
     stop("`drop` should always be FALSE in `[.tb`. ",
          "The argument was only kept for compatibility")
   }
@@ -46,11 +46,11 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill")][c(-1,-2)]
+  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill")][c(-1, -2)]
   args <- lapply(args, expand_expr, pf)
 
-  if(has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1,2)]])) {
-    if(length(args) == 1) stop(
+  if (has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1, 2)]])) {
+    if (length(args) == 1) stop(
       "You cannot use `++` in a unique bracket argument as it is then fed to j ",
       "(list indexing), use foo[++bar,] instead of foo[++bar]")
     mask$.data <- rbind(mask$.data, eval.parent(args[[1]]))
@@ -58,8 +58,8 @@
   }
 
   args <- lapply(args, function(x) {
-    if(is.numeric(x) || is.character(x)) return(x)
-    if(has_splice_prefix(x)){
+    if (is.numeric(x) || is.character(x)) return(x)
+    if (has_splice_prefix(x)) {
       return(eval.parent(splice_expr(x[[2]], mask)))
     }
     list(splice_expr(x, mask))
@@ -75,23 +75,23 @@
     length_args > 1 &&
     any(specified_lgl[1:2]) &&
     any(which(!specified_lgl) > which.max(specified_lgl))
-  if(first_unspecified_args_not_at_front) {
+  if (first_unspecified_args_not_at_front) {
     stop("i and j should be given first")
   }
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## assign arguments to i, j, or dots
-  if(!specified_lgl[1]) {
+  if (!specified_lgl[1]) {
     i <- args[[1]]
-    if(length_args==1) {
+    if (length_args == 1) {
       ## use list indexing, i s used for j
       j <- expand_expr(substitute(i), pf)
       col_subset_by_ref(j, mask, by = NULL)
       return(mask$.data)
     }
-    if(!specified_lgl[2]) {
+    if (!specified_lgl[2]) {
       j <- args[[2]]
-      dots <- args[-(1:2)]
+      dots <- args[- (1:2)]
     } else {
       j <- substitute()
       dots <- args[-1]
@@ -108,7 +108,7 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## mutate if `by` is missing
-  if(missing(by)){
+  if (missing(by)) {
     mutate_dots_by_ref(dots, mask)
     fill_by_ref(fill, mask)
     return(mask$.data)
@@ -117,9 +117,9 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # aggregate otherwise
   by <- substitute(by)
-  if(is.symbol(by)) {
+  if (is.symbol(by)) {
     by <- as.character(by)
-    if(!by %in% names(mask$.data))
+    if (!by %in% names(mask$.data))
       stop(sprintf(paste0(
         "The column '%s' was not found, ",
         "if you meant to evaluate the variable '%s', ",
@@ -128,10 +128,10 @@
   } else {
     by <- expand_expr(by, pf)
     by <- eval(by, envir = mask$.data, enclos = mask)
-    if(isTRUE(is.na(by))) {
+    if (isTRUE(is.na(by))) {
       by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
     }
-    if(inherits(by, "tb_selection")) {
+    if (inherits(by, "tb_selection")) {
       by <- modify_by_ref_and_return_selected_names(by, mask)
     }
   }
@@ -139,6 +139,3 @@
   fill_by_ref(fill, mask)
   mask$.data
 }
-
-
-

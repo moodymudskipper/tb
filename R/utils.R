@@ -126,7 +126,7 @@ reparse_dbl_tilde <- function(expr){
   arg_nms   <-  paste0("*",seq_len(i))
   fun_iter_args <- setNames(replicate(i, substitute()), arg_nms)
   fun <- as.function(c(fun_iter_args, body),envir = parent.frame())
-  as.call(c(quote(mapply),fun, all_iter_args))
+  as.call(c(quote(mapply2),fun, all_iter_args))
 }
 
 splice_expr <- function(expr, mask){
@@ -174,10 +174,29 @@ transform2 <- function(nm, expr, mask){
   res <- eval(expr,envir = .data, enclos = mask)
   if(inherits(res, "formula")){
     ## mutating along
-    along_vars <- get_all_vars(res[-2], .data)
+    along <- res[[3]]
+    if(is.symbol(along)) {
+      along <- as.character(along)
+      if(!along %in% names(mask$.data))
+        stop(sprintf(paste0(
+          "The column '%s' was not found, ",
+          "if you meant to evaluate the variable '%s', ",
+          "use '.(%s)' or `c(%s)`instead"),
+          along, along, along, along))
+    } else {
+      along <- expand_expr(along, pf)
+      along <- eval(along, envir = mask$.data, enclos = mask)
+      if(isTRUE(is.na(along))) {
+        along <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
+      }
+      if(inherits(along, "tb_selection")) {
+        along <- modify_by_ref_and_return_selected_names(along, mask)
+      }
+    }
+    along_df <- subset_j(.data, along)
+
     expr <- res[[2]]
-    #expr <- substitute(with(., EXPR), list(EXPR = res[[2]]))
-    sub_dfs <- split(as.data.frame(.data), along_vars)
+    sub_dfs <- split(as.data.frame(.data), along_df)
 
     transformation_fun <- function(sub_df, expr) {
       mask$.subset <- as_tb(sub_df)
@@ -187,13 +206,21 @@ transform2 <- function(nm, expr, mask){
     }
 
     res <- rep(NA, nrow(.data))
-    split(res, along_vars) <- lapply(sub_dfs, transformation_fun, expr)
+    split(res, along_df) <- lapply(sub_dfs, transformation_fun, expr)
     mask$.       <- NULL
     mask$.subset <- NULL
     mask$.N      <- NULL
-  } else {
-    # regular mutating
-    #.data[[nm]] <- res
+  }
+  res
+}
+
+mapply2 <- function(...){
+  res <- Map(...)
+  if(
+    all(lengths(res) == 1) &&
+    all(vapply(res, function(x) !is.null(x) && is.atomic(x), logical(1)))
+  ){
+    res <- unlist(res)
   }
   res
 }

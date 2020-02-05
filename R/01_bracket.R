@@ -116,12 +116,24 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # aggregate otherwise
-  by <- eval(substitute(by), envir = mask$.data, enclos = mask)
-  if(isTRUE(is.na(by))) {
-    by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
-  }
-  if(inherits(by, "tb_selection")) {
-    by <- modify_by_ref_and_return_selected_names(by, mask)
+  by <- substitute(by)
+  if(is.symbol(by)) {
+    by <- as.character(by)
+    if(!by %in% names(mask$.data))
+      stop(sprintf(paste0(
+        "The column '%s' was not found, ",
+        "if you meant to evaluate the variable '%s', ",
+        "use '.(%s)' or `c(%s)`instead"),
+        by, by, by, by))
+  } else {
+    by <- expand_expr(by, pf)
+    by <- eval(by, envir = mask$.data, enclos = mask)
+    if(isTRUE(is.na(by))) {
+      by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
+    }
+    if(inherits(by, "tb_selection")) {
+      by <- modify_by_ref_and_return_selected_names(by, mask)
+    }
   }
   mask$.data <- summarize_dots(dots, mask, by)
   fill_by_ref(fill, mask)

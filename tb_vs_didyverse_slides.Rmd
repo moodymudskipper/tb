@@ -1,0 +1,704 @@
+---
+title: "`tb` compared to `tidyverse`"
+subtitle: "A feature by feature review"
+author: "Antoine Fabri, January 2020"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: [default, hygge, ninjutsu]
+    nature:
+      ratio: 16:10
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, , include = FALSE, cache = FALSE}
+knitr::opts_chunk$set(fig.width = 6, message = FALSE, warning = FALSE, comment = "", cache = FALSE, fig.retina = 3, size = 40)
+library(flipbookr)
+library(tb)
+
+library(matrixStats)
+library(tidyverse)
+library(withDT)
+`%>%` <- function(e1,e2) invisible()
+```
+
+
+# *tb* 
+
+`tb` is an attempt at packing more features into a *data.table* looking interface,
+it aims at compact code, flexibility, and takes a different approach to a few concepts.
+
+It takes inspiration from the great data manipulation packages the R community has produced,
+but it's also a bit wild, and doesn't really try to respect what you're used to, so
+take a big breath!
+
+This deck will thus go through *dplyr* and *tidyr*'s functions and give *tb* equivalents.
+
+It shows *tb*'s output only, the *tidyverse* output being a very close equivalent
+or identical.
+
+---
+
+# *tb* objects
+
+A `tb` is a *data.frame* with an additional class `"tb"`, just like a `data.table`
+is a *data.frame* with a `"data.table"` class. and a tibble
+is a *data.frame* with a `"tbl_df"` class.
+
+    my_tb[i, j, ..., by, fill, drop]
+
+In order not to end up with another type of object in our workspace I use the
+`%tb>%` pipe, which allows the *tb* syntax but returns an object of the
+original class, so usage becomes.
+
+    my_df %tb>% .[i, j, ..., by, fill, drop]
+
+---
+
+# Peculiarities
+
+* summarizing instructions can be mixed with nesting, packing, and spreading, 
+and several spreading instructions can be made in one call.
+
+* renaming instructions can be mixed with mutating instructions (themselves grouped or not)
+
+* `.` is used to refer to the currently mutated or summarized column
+
+* `.()` is used as in `bquote()` (not as in *data.table*!)
+
+* `.data` is used to refer to the data, not `.` like in `magrittr`
+
+* Unary `+` is used for splicing
+
+* `~~` is used before a function argument to signal that the function should
+be vectorized on this argument
+
+
+* `:=` is to be seen as an expansion of `=`, thus in `my_tb[a:=b]`, the first
+arg is fed to the dots, not to `i` ! A small exception is that if you want to create a column named `drop` or `by` for instance, you can use `:=` : `my_tb[drop := 42]`
+
+
+
+
+* If we feed only one bracket argument to a tb, it is fed to j as for standard
+data frames (list indexing), this is different from what *data.table* does.
+
+
+
+---
+
+# dplyr
+
+* `mutate()` family
+* `select()` family
+* `rename()` family
+* `slice()`
+* `filter()` family
+* `summarize()` family
+* `count()` family
+
+---
+
+
+# mutate() 1/5 : standard use
+
+mutating is done through the `...`
+
+```{r, echo = FALSE}
+(data <- data.frame(foo = 1, bar = 2, baz = "a", stringsAsFactors = FALSE ))
+```
+
+Create, modify or remove a variable
+
+```{r}
+data %>% mutate(foo = foo *2, qux = foo * 10, baz = NULL, corge = list(1:3))
+data %tb>% .[foo = .*2, qux = foo * 10, baz = NULL, corge = list(1:3)] #<<
+```
+
+*tb* can also create data.frame columns, which `mutate()` can't :
+
+```{r}
+data %tb>% .[grault = data.frame(a=1, b=2)] #<<
+```
+
+---
+
+# mutate() 2/5 : quasi quotation
+
+We use `.()` as in `bquote()`, which is equivalent with some quasi quotation
+features. `.data` can also be used to refers to the current data, it's a *tb* object
+though, not a special pronoun object as in the *tidyverse*. 
+
+```{r, echo=FALSE}
+data
+```
+
+```{r}
+foo <- 42
+x <- "foo"
+y <- quote(foo)
+z <- "foo4"
+data %>% mutate(foo2 = .data[[x]], foo3 = !!y, !!z := foo, qux = !!foo)
+data %tb>% .[foo2 = .data[[x]], foo3 = .(y), .(z) := foo, qux = .(foo)] #<<
+```
+
+---
+
+# mutate() 3/5 : scoped variants
+
+```{r, echo = FALSE}
+data
+```
+
+.pull-left[
+
+`mutate_if()`
+
+```{r}
+data %>% mutate_if(is.character, toupper)
+data %tb>% .[?is.character := toupper(.)] #<<
+```
+
+`mutate_all()`
+
+```{r}
+data %>% mutate_all(~paste0("X",.))
+data %tb>% .[?".*" := paste0("X",.)] #<<
+```
+
+]
+
+.pull-right[
+
+`mutate_at()`
+
+```{r}
+data %>% mutate_at(vars(foo,bar), ~.*10)
+data %tb>% .[s(foo,bar) := .*10] #<<
+```
+
+Putting everything together
+
+```{r}
+data %tb>% .[ #<<
+  ?is.character := toupper(.), #<<
+  s(foo,bar) := .*10,  #<<
+  ?".*" := paste0("X",.)] #<<
+```
+
+]
+
+
+---
+
+# mutate() 4/5 : transmute()
+
+`transmute()` is done in `j`, `j` is selection in the *SQL* sense, including
+modifications and new columns, similar to what *data.table* proposes. 
+
+.pull-left[
+
+`transmute()`
+
+```{r}
+data %>% transmute(bar, qux = foo * 4)
+data %tb>% .[s(bar, qux = foo * 4)] #<<
+```
+
+`transmute_if()`
+
+```{r}
+data %>% 
+  transmute_if(is.character, toupper)
+data %tb>% 
+  .[,?is.character, ?".*" :=toupper(.)] #<<
+```
+
+
+]
+
+.pull-right[
+
+`transmute_all()`
+
+```{r}
+data %>% transmute_all(~paste0("X",.))
+data %tb>% .[?".*" := paste0("X",.)] #<<
+```
+
+`transmute_at`
+
+```{r}
+data %>% 
+  transmute_at(vars(foo,bar), ~.*10)
+data %tb>%
+  .[, s(foo,bar), ?".*" := .*10] #<<
+```
+]
+
+---
+
+# mutate() 5/5 : Window functions
+
+Aggregation and window functions are different things in tb, for window functions use `~`
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4))
+```
+
+.pull-left[
+grouped `mutate()`
+
+```{r}
+data %>% 
+  group_by(foo) %>% 
+  mutate(baz = mean(bar))
+data %tb>% .[baz = mean(bar) ~ foo] #<<
+```
+]
+
+.pull-right[
+grouped `transmute()`
+
+```{r}
+data %>% 
+  group_by(foo) %>% 
+  transmute(baz = mean(bar))
+data %tb>% .[s(baz = mean(bar) ~ foo)] #<<
+```
+]
+
+---
+
+
+# select() 1/2
+
+
+```{r, echo = FALSE}
+(data <- data.frame(foo = 1, bar = 2, baz = "a", stringsAsFactors = FALSE ))
+```
+
+
+.pull-left[
+
+Use `s()` as a selection utility.
+
+```{r}
+data %>% select(bar, baz)
+data %tb>% .[, s(bar, baz)] #<<
+```
+
+Use regular expressions to select columns.
+
+```{r}
+data %>% select(starts_with("ba"))
+data %tb>% .[, ?"^ba"] #<<
+```
+
+]
+
+.pull-right[
+
+`s()` can be used to rename too
+
+```{r}
+data %>% select(foo, BAR = bar)
+data %tb>% .[, s(foo, BAR = bar)] #<<
+```
+
+`select_if()` with function or dot expression
+
+```{r}
+data %>% select_if(is.numeric)
+data %tb>% .[, ?is.numeric] #<<
+```
+]
+
+---
+
+
+# select() 2/2
+
+
+```{r, echo = FALSE}
+data
+```
+
+
+.pull-left[
+
+Reorder columns.
+
+```{r}
+data %>% select(bar, everything())
+data %tb>% .[, s(bar, ?".*")] #<<
+```
+
+`select_at()` with renaming
+
+```{r, results}
+data %>% select_at(vars(foo),toupper)
+data %tb>% .[, s(foo), {?".*"} := toupper(.)] #<<
+```
+]
+
+.pull-right[
+
+Use `s()` for complex or negative selection.
+
+```{r}
+data %>% select(-ends_with("ar"))
+data %tb>% .[, s(-?"ar$")] #<<
+```
+
+`select_all()` with renaming
+
+```{r}
+data %>% select_all(toupper)
+data %tb>% .[{?".*"} := toupper(.)] #<<
+```
+
+]
+
+---
+
+
+# rename()
+
+
+
+```{r, echo = FALSE}
+(data <- data.frame(foo = 1, bar = 2, baz = "a", stringsAsFactors = FALSE ))
+```
+
+.pull-left[
+`rename()` with `{old} := "new"`
+
+```{r}
+data %>% rename(BAR = bar)
+data %tb>% .[{bar} := "BAR"] #<<
+```
+
+`rename_if()`
+
+```{r}
+data %>% 
+  rename_if(is.character, toupper)
+data %tb>% 
+  .[{?is.character} := toupper(.)] #<<
+```
+]
+
+.pull-right[
+`rename_all()`
+
+```{r}
+data %>% rename_all(toupper)
+data %tb>% .[{?".*"} := toupper(.)] #<<
+```
+
+`rename_at()`
+
+```{r}
+data %>% 
+  rename_at(vars(foo, baz), toupper)
+data %tb>% 
+  .[{?s(foo, baz)} := toupper(.)] #<<
+```
+]
+
+---
+
+# slice()
+
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4))
+```
+
+.pull-left[
+
+```{r}
+data %>% slice(c(1, 3, n()))
+data %tb>% .[c(1, 3, .N),] #<<
+```
+
+]
+
+.pull-right[
+
+```{r}
+data %>% 
+  group_by(foo) %>% 
+  slice(2) %>% 
+  ungroup()
+data %tb>% .[2 ~ foo,] #<<
+```
+
+]
+
+---
+
+# `filter()`
+
+We get help from `library(matrixStats)` here.
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4, baz = 4:1))
+```
+
+.pull-left[
+
+```{r}
+data %>% filter(foo == 1)
+data %tb>% .[foo ==1,] #<<
+```
+
+```{r}
+data %>% filter_all(any_vars(. > 3))
+data %tb>% .[rowAnys(.data > 3),] #<<
+```
+
+]
+
+.pull-right[
+
+```{r}
+data %>% filter_at(vars(foo, bar), all_vars(. > 1))
+data %tb>% .[rowAlls(.data[s(foo, bar)] > 1),] #<<
+```
+
+```{r}
+data %>% filter_all(all_vars(. > 1))
+data %tb>% .[rowAlls(.data > 1),] #<<
+```
+
+]
+
+
+---
+
+# `filter()`
+
+We get help from `library(matrixStats)` here.
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4, baz = 4:1))
+```
+
+.pull-left[
+
+```{r}
+data %>% filter(foo == 1)
+data %tb>% .[foo ==1,] #<<
+```
+
+```{r}
+data %>% filter_all(any_vars(. > 3))
+data %tb>% .[rowAnys(.data > 3),] #<<
+```
+
+]
+
+.pull-right[
+
+```{r}
+data %>% filter_at(vars(foo, bar), all_vars(. > 1))
+data %tb>% .[rowAlls(.data[s(foo, bar)] > 1),] #<<
+```
+
+```{r}
+data %>% filter_all(all_vars(. > 1))
+data %tb>% .[rowAlls(.data > 1),] #<<
+```
+
+]
+
+---
+
+# bind_rows() and bind_cols()
+
+```{r, echo = FALSE}
+(data1 <- data.frame(foo = 1, bar = 2))
+(data2 <- data.frame(baz = 3, qux = 4))
+```
+
+To `bind_cols()` use unary to splice data frame into mutate argument
+
+```{r}
+data1 %>% bind_cols(data2)
+data1 %tb>% .[+data2] #<<
+```
+
+To `bind_rows()` we use the special `++` notation
+
+```{r}
+data1 %>% bind_rows(data1)
+data1 %tb>% .[++data1,] #<<
+```
+
+---
+
+# arrange()
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4, baz = 4:1))
+```
+
+`arrange()`
+
+```{r}
+data %>% arrange(foo, baz)
+data %tb>% .[order(foo,baz),] #<<
+```
+
+to `arrange_at()` we modify a subset and splice it into `order()`
+
+```{r}
+data %>% arrange_at(1:2, sin)
+data %tb>% .[order(+lapply(.data[1:2],sin)),] #<<
+```
+
+---
+
+# `summarize()` 1/2
+
+```{r, echo = FALSE}
+data <- head(mtcars[c("disp", "mpg","vs","am")], 4)
+rownames(data) <- NULL
+data
+```
+
+standard `summarize()`
+
+```{r}
+mtcars %>% group_by(vs) %>% summarise(mean = mean(disp), n = n())
+mtcars %tb>% .[mean = mean(disp), n = .N, by= vs]
+```
+
+To `summarize()` by several colums, use a character vector or a `s()` selection :
+
+```{r}
+mtcars %>% group_by(vs, am) %>% summarise(mean = mean(disp), n = n())
+mtcars %tb>% .[mean = mean(disp), n = .N, by= s(vs, am)] #<<
+```
+
+`summarize()` without grouping, using `by = NULL`
+
+```{r}
+mtcars %>% summarise(mean = mean(disp), n = n())
+mtcars %tb>% .[mean = mean(disp), n = .N, by= NULL] #<<
+```
+
+---
+
+# `summarize()` 2/2 : scoped variants
+
+```{r, echo = FALSE}
+(data <- head(as.data.frame(starwars), 4)[c("name","species","height","mass")])
+```
+
+To `summarize_at()` we use the same syntax as to `mutate_at()`
+
+```{r}
+data %>% 
+  group_by(species) %>%
+  summarise_at(vars(height, mass), mean)
+data %tb>%  .[s(height, mass) := mean(.), by = species] #<<
+```
+
+
+```{r}
+data %>% 
+  group_by(species) %>%
+  summarise_if(is.numeric, mean)
+data %tb>% .[?is.numeric := mean(.), by = species] #<<
+```
+
+---
+
+# `count()`
+
+```{r, echo = FALSE}
+(data <- data.frame(foo=c(1,1,2,2), bar = 1:4, baz = 4:1))
+```
+
+.pull-left[
+
+`count()`
+
+```{r}
+data %>% count(foo)
+data %tb>% .[n = .N, by = "foo"]
+```
+
+]
+
+.pull-right[
+
+`add_count()`
+
+```{r}
+data %>% add_count(foo)
+data %tb>% .[n = .N ~ foo]
+```
+]
+
+---
+
+# tidyr
+
+* `nest()` / `chop()` / `pack()`
+* `spread()`
+
+---
+
+# `nest()`
+
+To `nest()` we summarize into a list
+
+```{r}
+(data <- tibble(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1))
+```
+
+To imitate `nest()` we use `by = NA` to group by unmentionned columns
+
+```{r}
+data %>% nest(data = c(y, z))
+data %tb>% .[data = tibble(y, z), by = NA]
+```
+
+`chop()`
+
+```{r}
+data %>% chop(c(y, z))
+data %tb>% .[s(y,z) := . , by = NA]
+```
+
+To `pack()` we mutate a data frame column, and remove the used variables by
+surrounding the `((lhs))` with parentheses. 
+
+```{r}
+data %>% pack(foo=c(y,z))
+data %tb>% .[((foo)) := data.frame(y,z)]
+```
+
+
+```{r}
+as_tibble(iris) %>% nest(data = -Species)
+as_tibble(iris) %tb>% .[data = .subset[s(-Species)], by= Species]
+```
+
+
+```{r}
+as_tibble(mtcars) %>%
+  group_by(cyl) %>%
+  nest() %>%
+  mutate(models = map(data, ~lm(mpg ~ wt, data = .)))
+
+as_tibble(mtcars) %tb>%
+  .[data = .subset[s(-cyl)], by = cyl]$
+  .[models = lm(mpg~wt, ~~ data)]
+```

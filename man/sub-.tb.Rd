@@ -4,7 +4,7 @@
 \alias{[.tb}
 \title{Modify a tb object}
 \usage{
-\method{[}{tb}(x, i, j, ..., by, drop = FALSE, fill = NULL)
+\method{[}{tb}(x, i, j, ..., by, fill = NULL, drop = FALSE)
 }
 \arguments{
 \item{x}{teebee object}

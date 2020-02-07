@@ -11,7 +11,7 @@ fill_by_ref <- function(fill, mask) {
 }
 
 splt <- function(x, into, sep = "[^[:alnum:]]+",
-                 convert = FALSE, extra = "warn", fill = "warn"){
+                 convert = FALSE, extra = "warn", fill = "warn") {
   x <- as.character(x)
   x2 <- strsplit(x, sep, perl = TRUE)
   if (missing(into)) into <- paste0("V", seq_len(max(lengths(x2))))
@@ -220,77 +220,10 @@ mapply2 <- function(...) {
   res
 }
 
-reorganize_call_i <- function(mc, i, j) {
-  mc <- as.list(mc)
-  mc_i <- mc[["i"]]
-  names(mc)[names(mc) == "i"] <- ""
-  if (!missing(j)) {
-    if (is_labelled(j)) {
-      # if we have := in both i and j
-      names(mc)[names(mc) == "j"] <- ""
-      mc <- append(mc, c(substitute(), substitute()), 2)
-    } else {
-      # if we have := in i and a legit j
-      mc[["i"]] <- NULL
-      mc <- append(mc, substitute(), 2)
-      mc <- append(mc, mc_i, 4)
-    }
-  } else {
-    # if we have := in i and missing j
-    mc <- append(mc, c(substitute(), substitute()), 2)
-  }
-  mc <- as.call(mc)
-}
-
-reorganize_call_j <- function(mc, i, j) {
-  mc <- as.list(mc)
-  names(mc)[names(mc) == "j"] <- ""
-  if (missing(i)) {
-    mc <- append(mc, c(substitute(), substitute()), 2)
-  } else {
-    mc <- append(mc, substitute(), 3)
-  }
-  mc <- as.call(mc)
-}
-
 is_labelled <- function(x) {
   # expr should be a call
   # expr[[1]] should be `:=`
   is.call(x) && identical(x[[1]], quote(`:=`))
-}
-
-is_unique_and_unnamed <- function(x) {
-  length(x) == 1 &&
-    allNames(x) == "" &&
-    (!is.call(x[[1]]) || !identical(x[[1]][[1]], quote(`:=`)))
-}
-
-is_function_symbol_or_formula <- function(x) {
-  (is.call(x) && x[[1]] == quote(`~`)) ||
-    is.symbol(x) && !is.null(get0(as.character(x), mode = "function"))
-}
-
-as_function2 <- function(f) {
-  f <- eval(f)
-  if (inherits(f, "formula")) {
-    if (length(f) > 2) stop("The formula notation requires a one-sided formula")
-    as.function(c(alist(. =), f[[2]]))
-  } else f
-}
-
-summarize_all2 <- function(df, f, by) {
-  x <- df
-  x[by] <- NULL
-  aggregate.data.frame(x, df[by], f)
-}
-
-starts_with_bbb <- function(expr) {
-  is.call(expr) &&
-    identical(expr[[1]], quote(`!`)) &&
-    is.call(expr[[2]]) &&
-    identical(expr[[2]][[1]], quote(`!`)) &&
-    is.call(expr[[2]][[2]]) &&
-    identical(expr[[2]][[2]][[1]], quote(`!`))
 }
 
 # should be done with double parens ((foo)) and not reserved to

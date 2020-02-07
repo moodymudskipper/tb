@@ -113,12 +113,3 @@ tb_names <- function(args, env) {
   })
   nms
 }
-
-tb_args <- function(args, env) {
-  nms <- allNames(args)
-  unnamed <- nms == ""
-  nms[unnamed] <- sapply(args[unnamed], `[[`, 2)
-  exprs <- unname(args)
-  exprs[unnamed] <- sapply(args[unnamed], `[[`, 3)
-  list(names = nms, exprs = exprs)
-}

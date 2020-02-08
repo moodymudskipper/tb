@@ -78,20 +78,20 @@ it is not fed to `i` just like it wouldn't with `=`) but it supports more featur
 such as this usage of `.` :
 
 ```{r}
-mtcars %tb>% .[c("disp", "drat") := mean(.), by = ?is.factor]
+iris %tb>% .[c("Sepal.Length", "Sepal.Width") := mean(.), by = ?is.factor]
 ```
 
 That makes a convenient `summarize_at` mixed with `summarize`, or `summarize_all`
 
 ```{r}
-mtcars %tb>% .[(?"^d") := mean(.), wt = median(.), by = ?is.factor]
-mtcars %tb>% .[(?"^.*") := max(.), by = c()] # or by = NULL
+iris %tb>% .[(?"^d") := mean(.), wt = median(.), by = ?is.factor]
+cars %tb>% .[(?"^.*") := max(.), by = c()] # or by = NULL
 ```
 
 * As long as the lhs is not a symbol it will be evaluated
 
 ```{r}
-mtcars %tb>% .[paste0("di","sp") := mean(.), by = ?is.factor]
+iris %tb>% .[paste("Petal","Length", sep=".") := mean(.), by = ?is.factor]
 ```
 
 * To "mutate by", we use a formula notation, and we prefer to say "along" than
@@ -224,6 +224,6 @@ faster to type :
 ```{r}
 mtcars %tb>%
   .[1:20,4:9]$
-  .[(?"^.*") := min(.), by= s(vs,am)]
+  .[?".*" := min(.), by = s(vs,am)]
 ```
 

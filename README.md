@@ -35,6 +35,8 @@ standard data frames, tibbles, `data.table` objects etc.
 # setup
 library(tb)
 library(tidyverse, warn.conflicts = FALSE) # for comparison
+#> Warning: package 'tidyr' was built under R version 3.6.2
+#> Warning: package 'dplyr' was built under R version 3.6.2
 ```
 
 ``` r
@@ -99,21 +101,25 @@ iris %tb>% .[Sepal.Length = mean(.), Sepal.Width = mean(.), by = ?is.factor]
 <!-- end list -->
 
 ``` r
-mtcars %tb>% .[c("disp", "drat") := mean(.), by = ?is.factor]
-#>       disp     drat
-#> 1 230.7219 3.596563
+iris %tb>% .[c("Sepal.Length", "Sepal.Width") := mean(.), by = ?is.factor]
+#>      Species Sepal.Length Sepal.Width
+#> 1     setosa        5.006       3.428
+#> 2 versicolor        5.936       2.770
+#> 3  virginica        6.588       2.974
 ```
 
 That makes a convenient `summarize_at` mixed with `summarize`, or
 `summarize_all`
 
 ``` r
-mtcars %tb>% .[(?"^d") := mean(.), wt = median(.), by = ?is.factor]
-#>       disp     drat    wt
-#> 1 230.7219 3.596563 3.325
-mtcars %tb>% .[(?"^.*") := max(.), by = c()] # or by = NULL
-#>    mpg cyl disp  hp drat    wt qsec vs am gear carb
-#> 1 33.9   8  472 335 4.93 5.424 22.9  1  1    5    8
+iris %tb>% .[(?"^d") := mean(.), wt = median(.), by = ?is.factor]
+#>      Species   wt
+#> 1     setosa NULL
+#> 2 versicolor NULL
+#> 3  virginica NULL
+cars %tb>% .[(?"^.*") := max(.), by = c()] # or by = NULL
+#>   speed dist
+#> 1    25  120
 ```
 
   - As long as the lhs is not a symbol it will be evaluated
@@ -121,9 +127,11 @@ mtcars %tb>% .[(?"^.*") := max(.), by = c()] # or by = NULL
 <!-- end list -->
 
 ``` r
-mtcars %tb>% .[paste0("di","sp") := mean(.), by = ?is.factor]
-#>       disp
-#> 1 230.7219
+iris %tb>% .[paste("Petal","Length", sep=".") := mean(.), by = ?is.factor]
+#>      Species Petal.Length
+#> 1     setosa        1.462
+#> 2 versicolor        4.260
+#> 3  virginica        5.552
 ```
 
   - To “mutate by”, we use a formula notation, and we prefer to say
@@ -399,7 +407,7 @@ mutate(mtcars[1:2, 8:10], foo = pmap_dbl(list(vs, am, gear), ~mean(c(...), na.rm
 ``` r
 mtcars %tb>%
   .[1:20,4:9]$
-  .[(?"^.*") := min(.), by= s(vs,am)]
+  .[?".*" := min(.), by = s(vs,am)]
 #>   vs am  hp drat    wt  qsec
 #> 1  0  1 110 3.90 2.620 16.46
 #> 2  1  1  52 3.85 1.615 18.52

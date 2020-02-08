@@ -72,7 +72,7 @@ mutate_named_by_ref <- function(expr, nm, mask) {
   #~~~~~~~~~~
   # =
   if (is_glue_name(nm)) {
-    stop("A .by argument argument is required to spread/cast/pivot_wider")
+    stop("A `by` argument argument is required to spread/cast/pivot_wider")
   } else {
     ## regular column name
     # we should handle "along" notation in there too

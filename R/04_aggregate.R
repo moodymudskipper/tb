@@ -1,12 +1,12 @@
-summarize_dots <- function(dots, mask, by) {
+summarize_dots <- function(dots, mask, .by) {
   .data <- mask$.data
   .data_df <- .data
 
-  if (length(by)) {
+  if (length(.by)) {
     ## convert to factor to keep groups with NAs
     # handles by even if it its a selection objects or if it creates a new col
     by_cols_as_factors <- lapply(
-      subset_j(.data, by),
+      subset_j(.data, .by),
       function(x) factor(x, as.character(unique(x)), exclude = NULL))
 
     ## split data along by columns
@@ -14,7 +14,7 @@ summarize_dots <- function(dots, mask, by) {
     sub_dfs <- lapply(sub_dfs, as_tb)
     ## initiate with unique values of by columns
     # we ll append it with aggregations
-    output <- unique(.data_df[by])
+    output <- unique(.data_df[.by])
   } else {
     sub_dfs <- list(.data_df)
     output <- structure(list(), row.names = 1L, class = c("tb", "data.frame"))
@@ -26,15 +26,15 @@ summarize_dots <- function(dots, mask, by) {
     expr <- dots[[i]]
     nm <- nms[[i]]
     if (is_labelled(expr)) {
-      output <- summarize_labelled(expr, nm, output, sub_dfs, by, mask)
+      output <- summarize_labelled(expr, nm, output, sub_dfs, .by, mask)
     } else {
-      output <- summarize_named(expr, nm, output, sub_dfs, by, mask)
+      output <- summarize_named(expr, nm, output, sub_dfs, .by, mask)
     }
   }
 output
 }
 
-summarize_named <- function(expr, nm, output, sub_dfs, by, mask) {
+summarize_named <- function(expr, nm, output, sub_dfs, .by, mask) {
   if (nm == "") {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ## unnamed arguments are not supported
@@ -45,7 +45,7 @@ summarize_named <- function(expr, nm, output, sub_dfs, by, mask) {
   if (is_glue_name(nm)) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ## spread
-    res <- tb_spread(nm, expr, sub_dfs, mask, by)
+    res <- tb_spread(nm, expr, sub_dfs, mask, .by)
     output[names(res)] <- res
   } else {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -56,7 +56,7 @@ summarize_named <- function(expr, nm, output, sub_dfs, by, mask) {
 }
 
 
-summarize_labelled <- function(expr, nm, output, sub_dfs, by, mask) {
+summarize_labelled <- function(expr, nm, output, sub_dfs, .by, mask) {
   data_nms <- names(mask$.data)
   if (nm != "") {
     stop("An argument of `[.tb` can't be both named (using `=`) and labelled (using `:=`).")
@@ -65,10 +65,10 @@ summarize_labelled <- function(expr, nm, output, sub_dfs, by, mask) {
   expr <- reparse_dbl_tilde(expr[[3]])
 
   if (is_curly_expr(nm)) {
-    stop("Renaming expressions, using syntax `{var} := expr`, are not supported when aggregating with `by`")
+    stop("Renaming expressions, using syntax `{var} := expr`, are not supported when aggregating with `.by`")
   }
   if (is_parenthesized_twice(nm)) {
-    stop("Morphing expressions, using syntax `((var)) := expr`, are not supported when aggregating with `by`")
+    stop("Morphing expressions, using syntax `((var)) := expr`, are not supported when aggregating with `.by`")
   }
   if (is.symbol(nm)) {
     nm <- as.character(nm)
@@ -83,7 +83,7 @@ summarize_labelled <- function(expr, nm, output, sub_dfs, by, mask) {
     }
   }
   if (length(nm) == 1) {
-    return(summarize_named(expr, nm, output, sub_dfs, by, mask))
+    return(summarize_named(expr, nm, output, sub_dfs, .by, mask))
   }
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## Handle character lhs of length > 1
@@ -96,7 +96,7 @@ summarize_labelled <- function(expr, nm, output, sub_dfs, by, mask) {
 }
 
 
-tb_spread <- function(nm, arg, sub_dfs, mask, by) {
+tb_spread <- function(nm, arg, sub_dfs, mask, .by) {
   data_nms <- names(mask$.data)
   matches <- gregexpr("\\{.*?\\}", nm, perl = T)
   exprs <- regmatches(nm, matches)[[1]]  # curly braces content substrings
@@ -115,7 +115,7 @@ tb_spread <- function(nm, arg, sub_dfs, mask, by) {
       subset_j(sub_df, col_nms),
       function(x) factor(x, as.character(unique(x)), exclude = NULL))
     # spread_output
-    spread_output <- unique(subset_j(sub_df, by))
+    spread_output <- unique(subset_j(sub_df, .by))
     ## split data along spread columns
     sub_sub_dfs <- split(sub_df, spread_cols_as_factors, drop = TRUE)
     names(sub_sub_dfs) <- glue::glue_data(unique(sub_df[col_nms]), nm)
@@ -127,7 +127,7 @@ tb_spread <- function(nm, arg, sub_dfs, mask, by) {
   }
   res <- lapply(sub_dfs, transformation_fun, arg)
   res <- as_tb(data.table::rbindlist(res, fill = TRUE))
-  spread_nms <- setdiff(names(res), by)
+  spread_nms <- setdiff(names(res), .by)
   res <- res[spread_nms]
 }
 

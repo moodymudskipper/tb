@@ -1,6 +1,6 @@
-col_subset_by_ref <- function(j, mask, by) {
+col_subset_by_ref <- function(j, mask, .by) {
   if (missing(j)) return(invisible())
-  if (missing(by)) by <- NULL
+  if (missing(.by)) .by <- NULL
   if (is.call(j)) {
     ## evaluate j call in the context of df and mask
     j <- eval(j, envir = mask$.data, enclos = mask)
@@ -21,7 +21,7 @@ col_subset_by_ref <- function(j, mask, by) {
     j <- names(mask$.data)[j]
   }
   ## return union of by and j columns
-  j <- unique(c(by, j))
+  j <- unique(c(.by, j))
   mask$.data <- subset_j(mask$.data, j)
   invisible()
 }

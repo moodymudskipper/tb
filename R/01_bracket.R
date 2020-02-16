@@ -16,7 +16,7 @@
 #'
 #' @export
 `[.tb` <- function(x, i, j, ...,
-                   by, .stack = NULL, fill = NULL, drop = FALSE) {
+                   .by, .stack = NULL, .fill = NULL, drop = FALSE) {
   sc <- sys.call()
 
   #~~~~~~~~~~~~~~~~~~~----------------------
@@ -41,7 +41,7 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill",".stack")][c(-1, -2)]
+  args <- as.list(sc)[!allNames(sc) %in% c(".by", "drop", ".fill",".stack")][c(-1, -2)]
   args <- lapply(args, expand_expr, pf)
 
   if (length(args)) {
@@ -83,7 +83,7 @@
     if (length_args == 1) {
       ## use list indexing, i s used for j
       j <- expand_expr(substitute(i), pf)
-      col_subset_by_ref(j, mask, by = NULL)
+      col_subset_by_ref(j, mask, .by = NULL)
       return(mask$.data)
     }
     if (!specified_lgl[2]) {
@@ -101,7 +101,7 @@
   }
   row_subset_by_ref(i, mask)
   mask[[".N"]] <- nrow(mask$.data)
-  col_subset_by_ref(j, mask, by)
+  col_subset_by_ref(j, mask, .by)
   } else {
     dots <- list()
   }
@@ -109,42 +109,42 @@
   if(length(dots)){
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ## mutate if `by` is missing
-  if (missing(by)) {
+  ## mutate if `.by` is missing
+  if (missing(.by)) {
     mutate_dots_by_ref(dots, mask)
-    fill_by_ref(fill, mask)
+    fill_by_ref(.fill, mask)
     stack_by_ref(.stack, mask)
     return(mask$.data)
   }
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # aggregate otherwise
-  by <- substitute(by)
-  if (is.symbol(by)) {
-    by <- as.character(by)
-    if (!by %in% names(mask$.data))
+  .by <- substitute(.by)
+  if (is.symbol(.by)) {
+    .by <- as.character(.by)
+    if (!.by %in% names(mask$.data))
       stop(sprintf(paste0(
         "The column '%s' was not found, ",
         "if you meant to evaluate the variable '%s', ",
         "use '.(%s)' or `c(%s)`instead"),
-        by, by, by, by))
+        .by, .by, .by, .by))
   } else {
-    by <- expand_expr(by, pf)
-    by <- eval(by, envir = mask$.data, enclos = mask)
-    if (isTRUE(is.na(by))) {
-      by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
+    .by <- expand_expr(.by, pf)
+    .by <- eval(.by, envir = mask$.data, enclos = mask)
+    if (isTRUE(is.na(.by))) {
+      .by <- setdiff(names(mask$.data), unlist(lapply(dots, all.vars)))
     }
-    if (inherits(by, "tb_selection")) {
-      by <- modify_by_ref_and_return_selected_names(by, mask)
+    if (inherits(.by, "tb_selection")) {
+      .by <- modify_by_ref_and_return_selected_names(.by, mask)
     }
   }
 
-  mask$.data <- summarize_dots(dots, mask, by)
+  mask$.data <- summarize_dots(dots, mask, .by)
   }
 
 
   # we should place the "post processing" in another function to avoid nested ifs above
-  fill_by_ref(fill, mask)
+  fill_by_ref(.fill, mask)
   stack_by_ref(.stack, mask)
   as_tb(mask$.data)
 }

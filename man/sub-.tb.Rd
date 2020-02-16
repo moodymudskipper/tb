@@ -4,29 +4,25 @@
 \alias{[.tb}
 \title{Modify a tb object}
 \usage{
-\method{[}{tb}(x, i, j, ..., by, fill = NULL, drop = FALSE)
+\method{[}{tb}(x, i, j, ..., by, .stack = NULL, fill = NULL, drop = FALSE)
 }
 \arguments{
-\item{x}{teebee object}
+\item{x}{tb object}
 
-\item{i}{numeric, logical, character or formula to subset rows, i a formula
+\item{i}{numeric, logical, character or formula to subset rows, if a formula
 the lhs must evaluate to numeric and the rhs specifies the variables to
 slice along.}
 
 \item{j}{numeric, logical or character to subset columns}
 
 \item{...}{Name-value pairs of expression to be evaluated in the context of
-the teebee, see details}
+the tb, see details}
 
 \item{by}{variables to aggregate by}
 
-\item{.rm}{if TRUE columns not created by the call or part of by cols will be
-removed}
+\item{.stack}{to pivot to longer, see `?tb_stack`}
 
-\item{.unchop}{}
-}
-\value{
-
+\item{drop}{not used}
 }
 \description{
 `...` can contain `foo = expr` arguments such as those

@@ -3,25 +3,20 @@
 #'
 #' `...` can contain `foo = expr` arguments such as those
 #'
-#' @param x teebee object
-#' @param i numeric, logical, character or formula to subset rows, i a formula
+#' @param x tb object
+#' @param i numeric, logical, character or formula to subset rows, if a formula
 #'   the lhs must evaluate to numeric and the rhs specifies the variables to
 #'   slice along.
 #' @param j numeric, logical or character to subset columns
 #' @param ... Name-value pairs of expression to be evaluated in the context of
-#'   the teebee, see details
+#'   the tb, see details
 #' @param by variables to aggregate by
-#' @param .rm if TRUE columns not created by the call or part of by cols will be
-#'   removed
-#' @param drop
-#' @param .unchop
+#' @param .stack to pivot to longer, see `?tb_stack`
+#' @param drop not used
 #'
-#' @return
 #' @export
-#'
-#' @examples
 `[.tb` <- function(x, i, j, ...,
-                   by, fill = NULL, drop = FALSE) {
+                   by, .stack = NULL, fill = NULL, drop = FALSE) {
   sc <- sys.call()
 
   #~~~~~~~~~~~~~~~~~~~----------------------
@@ -46,10 +41,12 @@
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## get i, j. and dot args from the call and preprocess
-  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill")][c(-1, -2)]
+  args <- as.list(sc)[!allNames(sc) %in% c("by", "drop", "fill",".stack")][c(-1, -2)]
   args <- lapply(args, expand_expr, pf)
 
-  if (has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1, 2)]])) {
+  if (length(args)) {
+
+  if ( has_splice_prefix(args[[1]]) && has_splice_prefix(args[[c(1, 2)]])) {
     if (length(args) == 1) stop(
       "You cannot use `++` in a unique bracket argument as it is then fed to j ",
       "(list indexing), use foo[++bar,] instead of foo[++bar]")
@@ -105,12 +102,18 @@
   row_subset_by_ref(i, mask)
   mask[[".N"]] <- nrow(mask$.data)
   col_subset_by_ref(j, mask, by)
+  } else {
+    dots <- list()
+  }
+
+  if(length(dots)){
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ## mutate if `by` is missing
   if (missing(by)) {
     mutate_dots_by_ref(dots, mask)
     fill_by_ref(fill, mask)
+    stack_by_ref(.stack, mask)
     return(mask$.data)
   }
 
@@ -135,7 +138,13 @@
       by <- modify_by_ref_and_return_selected_names(by, mask)
     }
   }
+
   mask$.data <- summarize_dots(dots, mask, by)
+  }
+
+
+  # we should place the "post processing" in another function to avoid nested ifs above
   fill_by_ref(fill, mask)
-  mask$.data
+  stack_by_ref(.stack, mask)
+  as_tb(mask$.data)
 }

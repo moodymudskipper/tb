@@ -209,6 +209,7 @@ transform2 <- function(nm, expr, mask) {
   res
 }
 
+#' @export
 mapply2 <- function(...) {
   res <- Map(...)
   if (

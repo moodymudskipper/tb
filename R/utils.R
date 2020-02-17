@@ -125,7 +125,7 @@ reparse_dbl_tilde <- function(expr) {
   arg_nms   <-  paste0("*", seq_len(i))
   fun_iter_args <- setNames(replicate(i, substitute()), arg_nms)
   fun <- as.function(c(fun_iter_args, body), envir = parent.frame())
-  as.call(c(quote(mapply2), fun, all_iter_args))
+  as.call(c(quote(getFromNamespace("mapply2","tb")), fun, all_iter_args))
 }
 
 splice_expr <- function(expr, mask) {
@@ -209,7 +209,6 @@ transform2 <- function(nm, expr, mask) {
   res
 }
 
-#' @export
 mapply2 <- function(...) {
   res <- Map(...)
   if (

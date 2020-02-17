@@ -4,7 +4,7 @@
 \alias{[.tb}
 \title{Modify a tb object}
 \usage{
-\method{[}{tb}(x, i, j, ..., by, .stack = NULL, fill = NULL, drop = FALSE)
+\method{[}{tb}(x, i, j, ..., .by, .stack = NULL, .fill = NULL, drop = FALSE)
 }
 \arguments{
 \item{x}{tb object}
@@ -18,11 +18,11 @@ slice along.}
 \item{...}{Name-value pairs of expression to be evaluated in the context of
 the tb, see details}
 
-\item{by}{variables to aggregate by}
-
 \item{.stack}{to pivot to longer, see `?tb_stack`}
 
 \item{drop}{not used}
+
+\item{by}{variables to aggregate by}
 }
 \description{
 `...` can contain `foo = expr` arguments such as those
